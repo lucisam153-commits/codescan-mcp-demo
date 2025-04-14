@@ -1,21 +1,10 @@
-# SonarQube MCP Server
+# Codescan MCP Server
 
-[![CI](https://github.com/sapientpants/sonarqube-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/sapientpants/sonarqube-mcp-server/actions/workflows/ci.yml)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=sonarqube-mcp-server&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=sonarqube-mcp-server)
-[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=sonarqube-mcp-server&metric=bugs)](https://sonarcloud.io/summary/new_code?id=sonarqube-mcp-server)
-[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=sonarqube-mcp-server&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=sonarqube-mcp-server)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=sonarqube-mcp-server&metric=coverage)](https://sonarcloud.io/summary/new_code?id=sonarqube-mcp-server)
-[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=sonarqube-mcp-server&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=sonarqube-mcp-server)
-[![npm version](https://img.shields.io/npm/v/sonarqube-mcp-server.svg)](https://www.npmjs.com/package/sonarqube-mcp-server)
-[![npm downloads](https://img.shields.io/npm/dm/sonarqube-mcp-server.svg)](https://www.npmjs.com/package/sonarqube-mcp-server)
-[![License](https://img.shields.io/npm/l/sonarqube-mcp-server.svg)](https://github.com/sapientpants/sonarqube-mcp-server/blob/main/LICENSE)
-
-
-A Model Context Protocol (MCP) server that integrates with SonarQube to provide AI assistants with access to code quality metrics, issues, and analysis results.
+A Model Context Protocol (MCP) server that integrates with Codescan to provide AI assistants with access to code quality metrics, issues, and analysis results.
 
 ## Overview
 
-The SonarQube MCP Server enables AI assistants to interact with SonarQube's code quality analysis capabilities through the Model Context Protocol. This integration allows AI assistants to:
+The Codescan MCP Server enables AI assistants to interact with Codescan's code quality analysis capabilities through the Model Context Protocol. This integration allows AI assistants to:
 
 * Retrieve code metrics and analysis results
 * Access and filter issues
@@ -24,9 +13,8 @@ The SonarQube MCP Server enables AI assistants to interact with SonarQube's code
 
 ## Features
 
-- List all SonarQube projects with pagination support
-- Get detailed issue information from SonarQube projects with extensive filtering options
-- Support for both SonarQube and SonarCloud
+- List all Codescan projects with pagination support
+- Get detailed issue information from Codescan projects with extensive filtering options
 - Comprehensive parameter validation using Zod schemas
 - Full TypeScript support
 
@@ -44,68 +32,48 @@ The SonarQube MCP Server enables AI assistants to interact with SonarQube's code
 ```json
 {
   "mcpServers": {
-    "sonarqube": {
+    "codescan": {
       "command": "docker",
       "args": [
         "run",
         "-i",
         "--rm",
         "-e",
-        "SONARQUBE_URL",
+        "codescan_URL",
         "-e",
-        "SONARQUBE_TOKEN",
+        "codescan_TOKEN",
         "-e",
-        "SONARQUBE_ORGANIZATION",
-        "sapientpants/sonarqube-mcp-server"
+        "CODESCAN_ORGANIZATION",
+        "presh-ar/codescan-mcp-server"
       ],
       "env": {
-        "SONARQUBE_URL": "https://sonarqube.example.com",
-        "SONARQUBE_TOKEN": "your-sonarqube-token",
-        "SONARQUBE_ORGANIZATION": "your-organization-key (optional)"
+        "CODESCAN_URL": "https://app.codescan.io",
+        "CODESCAN_TOKEN": "your-codescan-token",
+        "CODESCAN_ORGANIZATION": "your-organization-key (optional)"
       }
     }
   }
 }
 ```
-
-### NPX
-
-```json
-{
-  "mcpServers": {
-    "sonarqube": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "sonarqube-mcp-server@1.0.0"
-      ],
-      "env": {
-        "SONARQUBE_URL": "https://sonarqube.example.com",
-        "SONARQUBE_TOKEN": "your-sonarqube-token",
-        "SONARQUBE_ORGANIZATION": "your-organization-key (optional)"
-      }
-    }
-  }
-}
 ```
 
 ## Available Tools
 
-The SonarQube MCP Server provides the following tools:
+The Codescan MCP Server provides the following tools:
 
-### SonarQube Tools
+### Codescan Tools
 
-1. `projects`: List all SonarQube projects
+1. `projects`: List all Codescan projects
    * Parameters:
-     * `organization` (optional) - Organization key for SonarQube Cloud
+     * `organization` (optional) - Organization key for Codescan
      * `page` (optional) - Page number for results pagination
      * `page_size` (optional) - Number of items per page
 
-2. `issues`: Get issues from a SonarQube project
+2. `issues`: Get issues from a Codescan project
    * Parameters:
-     * `project_key` (required) - The unique identifier for the SonarQube project
+     * `project_key` (required) - The unique identifier for the Codescan project
      * `severity` (optional) - Filter issues by severity (INFO, MINOR, MAJOR, CRITICAL, BLOCKER)
-     * `organization` (optional) - Organization key for SonarQube Cloud
+     * `organization` (optional) - Organization key for Codescan Cloud
      * `page` (optional) - Page number for results pagination
      * `page_size` (optional) - Number of items per page
      * `statuses` (optional) - Filter issues by status (array of: OPEN, CONFIRMED, REOPENED, RESOLVED, CLOSED, TO_REVIEW, IN_REVIEW, REVIEWED)
@@ -132,16 +100,16 @@ The SonarQube MCP Server provides the following tools:
 
 ## Environment Variables
 
-* `SONARQUBE_URL` - URL of your SonarQube instance (default: https://next.sonarqube.com/sonarqube)
-* `SONARQUBE_TOKEN` - Authentication token for SonarQube API access
-* `SONARQUBE_ORGANIZATION` - (Optional) Organization key for SonarQube Cloud
+* `CODESCAN_URL` - URL of your Codescan instance (default: https://app.codescan.io/codescan)
+* `CODESCAN_TOKEN` - Authentication token for Codescan API access
+* `CODESCAN_ORGANIZATION` - (Optional) Organization key for Codescan Cloud
 
 ## Development
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/sapientpants/sonarqube-mcp-server.git
-cd sonarqube-mcp-server
+git clone https://github.com/Presh-AR/codescan-mcp-server
+cd codescan-mcp-server
 ```
 
 2. Install dependencies:
@@ -158,13 +126,13 @@ pnpm run build
 ```json
 {
   "mcpServers": {
-    "sonarqube": {
+    "codescan": {
       "command": "node",
       "args": [
-        "/path/to/sonarqube-mcp-server/dist/index.js"
+        "/path/to/codescan-mcp-server/dist/index.js"
       ],
       "env": {
-        "SONARQUBE_TOKEN": "your-sonarqube-token"
+        "CODESCAN_TOKEN": "your-codescan-token"
       }
     }
   }
