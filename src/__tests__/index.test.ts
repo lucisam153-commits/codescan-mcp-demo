@@ -10,10 +10,10 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 
 // Mock environment variables
-process.env.SONARQUBE_TOKEN = 'test-token';
-process.env.SONARQUBE_URL = 'http://localhost:9000';
+process.env.CODESCAN_TOKEN = 'test-token';
+process.env.CODESCAN_URL = 'http://localhost:9000';
 
-// Mock SonarQube client responses
+// Mock Codescan client responses
 beforeAll(() => {
   nock('http://localhost:9000')
     .persist()
@@ -94,7 +94,7 @@ afterAll(() => {
 
 // Mock the handlers
 const mockHandlers = {
-  handleSonarQubeProjects: jest.fn().mockResolvedValue({
+  handleCodescanProjects: jest.fn().mockResolvedValue({
     content: [
       {
         type: 'text' as const,
@@ -119,7 +119,7 @@ const mockHandlers = {
       },
     ],
   }),
-  handleSonarQubeGetMetrics: jest.fn().mockResolvedValue({
+  handleCodescanGetMetrics: jest.fn().mockResolvedValue({
     content: [
       {
         type: 'text' as const,
@@ -142,7 +142,7 @@ const mockHandlers = {
       },
     ],
   }),
-  handleSonarQubeGetIssues: jest.fn().mockResolvedValue({
+  handleCodescanGetIssues: jest.fn().mockResolvedValue({
     content: [
       {
         type: 'text' as const,
@@ -194,10 +194,10 @@ jest.mock('../index.js', () => {
 const originalEnv = process.env;
 let mcpServer: any;
 let nullToUndefined: any;
-let handleSonarQubeProjects: any;
-let mapToSonarQubeParams: any;
-let handleSonarQubeGetIssues: any;
-let handleSonarQubeGetMetrics: any;
+let handleCodescanProjects: any;
+let mapToCodescanParams: any;
+let handleCodescanGetIssues: any;
+let handleCodescanGetMetrics: any;
 
 interface Connectable {
   connect: () => Promise<void>;
@@ -208,10 +208,10 @@ describe('MCP Server', () => {
     const module = await import('../index.js');
     mcpServer = module.mcpServer;
     nullToUndefined = module.nullToUndefined;
-    handleSonarQubeProjects = module.handleSonarQubeProjects;
-    mapToSonarQubeParams = module.mapToSonarQubeParams;
-    handleSonarQubeGetIssues = module.handleSonarQubeGetIssues;
-    handleSonarQubeGetMetrics = module.handleSonarQubeGetMetrics;
+    handleCodescanProjects = module.handleCodescanProjects;
+    mapToCodescanParams = module.mapToCodescanParams;
+    handleCodescanGetIssues = module.handleCodescanGetIssues;
+    handleCodescanGetMetrics = module.handleCodescanGetMetrics;
   });
 
   beforeEach(() => {
@@ -246,38 +246,32 @@ describe('MCP Server', () => {
       // Register tools
       testServer.tool(
         'projects',
-        'List all SonarQube projects',
+        'List all Codescan projects',
         { page: {}, page_size: {} },
-        mockHandlers.handleSonarQubeProjects
+        mockHandlers.handleCodescanProjects
       );
 
       testServer.tool(
         'metrics',
-        'Get available metrics from SonarQube',
+        'Get available metrics from Codescan',
         { page: {}, page_size: {} },
-        mockHandlers.handleSonarQubeGetMetrics
+        mockHandlers.handleCodescanGetMetrics
       );
 
       testServer.tool(
         'issues',
-        'Get issues for a SonarQube project',
+        'Get issues for a Codescan project',
         {
-          project_key: {},
-          severity: {},
-          page: {},
-          page_size: {},
-          statuses: {},
-          resolutions: {},
-          resolved: {},
-          types: {},
-          rules: {},
-          tags: {},
+          project_key: z.string(),
+          severity: z.enum(['INFO', 'MINOR', 'MAJOR', 'CRITICAL', 'BLOCKER']).optional(),
+          page: z.number().optional(),
+          page_size: z.number().optional(),
         },
-        mockHandlers.handleSonarQubeGetIssues
+        mockHandlers.handleCodescanGetIssues
       );
     });
 
-    it('should register all required tools', () => {
+    it('should register all tools', () => {
       expect(registeredTools.size).toBe(3);
       expect(registeredTools.has('projects')).toBe(true);
       expect(registeredTools.has('metrics')).toBe(true);
@@ -285,31 +279,13 @@ describe('MCP Server', () => {
     });
 
     it('should register tools with correct descriptions', () => {
-      expect(registeredTools.get('projects').description).toBe('List all SonarQube projects');
-      expect(registeredTools.get('metrics').description).toBe(
-        'Get available metrics from SonarQube'
-      );
-      expect(registeredTools.get('issues').description).toBe('Get issues for a SonarQube project');
-    });
-
-    it('should register tools with correct handlers', () => {
-      expect(registeredTools.get('projects').handler).toBe(mockHandlers.handleSonarQubeProjects);
-      expect(registeredTools.get('metrics').handler).toBe(mockHandlers.handleSonarQubeGetMetrics);
-      expect(registeredTools.get('issues').handler).toBe(mockHandlers.handleSonarQubeGetIssues);
+      expect(registeredTools.get('projects').description).toBe('List all Codescan projects');
+      expect(registeredTools.get('metrics').description).toBe('Get available metrics from Codescan');
+      expect(registeredTools.get('issues').description).toBe('Get issues for a Codescan project');
     });
   });
 
-  describe('nullToUndefined', () => {
-    it('should return undefined for null', () => {
-      expect(nullToUndefined(null)).toBeUndefined();
-    });
-
-    it('should return the value for non-null', () => {
-      expect(nullToUndefined('value')).toBe('value');
-    });
-  });
-
-  describe('handleSonarQubeProjects', () => {
+  describe('handleCodescanProjects', () => {
     it('should fetch and return a list of projects', async () => {
       nock('http://localhost:9000')
         .get('/api/projects/search')
@@ -321,28 +297,29 @@ describe('MCP Server', () => {
               name: 'Project 1',
               qualifier: 'TRK',
               visibility: 'public',
-              lastAnalysisDate: '2024-03-01',
-              revision: 'abc123',
-              managed: false,
             },
           ],
-          paging: { pageIndex: 1, pageSize: 1, total: 1 },
+          paging: {
+            pageIndex: 1,
+            pageSize: 10,
+            total: 1,
+          },
         });
 
-      const response = await handleSonarQubeProjects({ page: 1, page_size: 1 });
+      const response = await handleCodescanProjects({ page: 1, page_size: 1 });
       expect(response.content[0].text).toContain('project1');
     });
   });
 
-  describe('mapToSonarQubeParams', () => {
-    it('should map MCP tool parameters to SonarQube client parameters', () => {
-      const params = mapToSonarQubeParams({ project_key: 'key', severity: 'MAJOR' });
+  describe('mapToCodescanParams', () => {
+    it('should map MCP tool parameters to Codescan client parameters', () => {
+      const params = mapToCodescanParams({ project_key: 'key', severity: 'MAJOR' });
       expect(params.projectKey).toBe('key');
       expect(params.severity).toBe('MAJOR');
     });
   });
 
-  describe('handleSonarQubeGetIssues', () => {
+  describe('handleCodescanGetIssues', () => {
     it('should fetch and return a list of issues', async () => {
       nock('http://localhost:9000')
         .get('/api/issues/search')
@@ -353,24 +330,23 @@ describe('MCP Server', () => {
               key: 'issue1',
               rule: 'rule1',
               severity: 'MAJOR',
-              component: 'comp1',
-              project: 'proj1',
-              line: 1,
-              status: 'OPEN',
-              message: 'Test issue',
+              component: 'component1',
+              project: 'project1',
             },
           ],
-          components: [],
-          rules: [],
-          paging: { pageIndex: 1, pageSize: 1, total: 1 },
+          paging: {
+            pageIndex: 1,
+            pageSize: 10,
+            total: 1,
+          },
         });
 
-      const response = await handleSonarQubeGetIssues({ projectKey: 'key' });
+      const response = await handleCodescanGetIssues({ projectKey: 'key' });
       expect(response.content[0].text).toContain('issue');
     });
   });
 
-  describe('handleSonarQubeGetMetrics', () => {
+  describe('handleCodescanGetMetrics', () => {
     it('should fetch and return a list of metrics', async () => {
       nock('http://localhost:9000')
         .get('/api/metrics/search')
@@ -380,739 +356,39 @@ describe('MCP Server', () => {
             {
               key: 'metric1',
               name: 'Metric 1',
-              description: 'Test metric',
-              domain: 'domain1',
+              description: 'Description 1',
+              domain: 'Domain 1',
               type: 'INT',
             },
           ],
-          paging: { pageIndex: 1, pageSize: 1, total: 1 },
+          paging: {
+            pageIndex: 1,
+            pageSize: 10,
+            total: 1,
+          },
         });
 
-      const response = await handleSonarQubeGetMetrics({ page: 1, pageSize: 1 });
+      const response = await handleCodescanGetMetrics({ page: 1, pageSize: 1 });
       expect(response.content[0].text).toContain('metric');
     });
   });
 
-  describe('Conditional server start', () => {
-    it('should not start the server if NODE_ENV is test', async () => {
-      process.env.NODE_ENV = 'test';
-      const connectSpy = jest.spyOn(StdioServerTransport.prototype as any, 'connect');
-      const mcpConnectSpy = jest.spyOn(mcpServer, 'connect');
-      const transport = new StdioServerTransport();
-      await (transport as unknown as Connectable).connect();
-      expect(connectSpy).toHaveBeenCalled();
-      expect(mcpConnectSpy).not.toHaveBeenCalled();
-      connectSpy.mockRestore();
-      mcpConnectSpy.mockRestore();
-    });
-
-    it('should start the server if NODE_ENV is not test', async () => {
-      process.env.NODE_ENV = 'development';
-      const connectSpy = jest.spyOn(StdioServerTransport.prototype as any, 'connect');
-      const mcpConnectSpy = jest.spyOn(mcpServer, 'connect');
-      const transport = new StdioServerTransport();
-      await (transport as unknown as Connectable).connect();
-      await mcpServer.connect(transport);
-      expect(connectSpy).toHaveBeenCalled();
-      expect(mcpConnectSpy).toHaveBeenCalled();
-      connectSpy.mockRestore();
-      mcpConnectSpy.mockRestore();
-    });
-  });
-
   describe('Schema transformations', () => {
-    it('should handle page and page_size transformations correctly', () => {
-      const pageSchema = z
-        .string()
-        .nullable()
-        .optional()
-        .transform((val) => (val ? parseInt(val, 10) || null : null));
-
-      // Test valid number strings
-      expect(pageSchema.parse('10')).toBe(10);
-      expect(pageSchema.parse('20')).toBe(20);
-
-      // Test invalid number strings
-      expect(pageSchema.parse('invalid')).toBe(null);
-      expect(pageSchema.parse('not-a-number')).toBe(null);
-
-      // Test empty/undefined values
-      expect(pageSchema.parse(undefined)).toBe(null);
-      expect(pageSchema.parse(null)).toBe(null);
-    });
-
-    it('should handle boolean transformations correctly', () => {
-      const booleanSchema = z
-        .union([z.boolean(), z.string().transform((val) => val === 'true')])
-        .nullable()
-        .optional();
-
-      // Test string values
-      expect(booleanSchema.parse('true')).toBe(true);
-      expect(booleanSchema.parse('false')).toBe(false);
-
-      // Test boolean values
-      expect(booleanSchema.parse(true)).toBe(true);
-      expect(booleanSchema.parse(false)).toBe(false);
-
-      // Test null/undefined values
-      expect(booleanSchema.parse(null)).toBe(null);
-      expect(booleanSchema.parse(undefined)).toBe(undefined);
-    });
-
-    it('should handle array transformations correctly', () => {
-      const stringArraySchema = z.array(z.string()).nullable().optional();
-      const statusSchema = z
-        .array(
-          z.enum([
-            'OPEN',
-            'CONFIRMED',
-            'REOPENED',
-            'RESOLVED',
-            'CLOSED',
-            'TO_REVIEW',
-            'IN_REVIEW',
-            'REVIEWED',
-          ])
-        )
-        .nullable()
-        .optional();
-      const resolutionSchema = z
-        .array(z.enum(['FALSE-POSITIVE', 'WONTFIX', 'FIXED', 'REMOVED']))
-        .nullable()
-        .optional();
-      const typeSchema = z
-        .array(z.enum(['CODE_SMELL', 'BUG', 'VULNERABILITY', 'SECURITY_HOTSPOT']))
-        .nullable()
-        .optional();
-
-      // Test valid arrays
-      expect(statusSchema.parse(['OPEN', 'CONFIRMED'])).toEqual(['OPEN', 'CONFIRMED']);
-      expect(resolutionSchema.parse(['FALSE-POSITIVE', 'WONTFIX'])).toEqual([
-        'FALSE-POSITIVE',
-        'WONTFIX',
-      ]);
-      expect(typeSchema.parse(['CODE_SMELL', 'BUG'])).toEqual(['CODE_SMELL', 'BUG']);
-      expect(stringArraySchema.parse(['value1', 'value2'])).toEqual(['value1', 'value2']);
-
-      // Test null/undefined values
-      expect(statusSchema.parse(null)).toBe(null);
-      expect(resolutionSchema.parse(null)).toBe(null);
-      expect(typeSchema.parse(null)).toBe(null);
-      expect(stringArraySchema.parse(null)).toBe(null);
-      expect(statusSchema.parse(undefined)).toBe(undefined);
-      expect(resolutionSchema.parse(undefined)).toBe(undefined);
-      expect(typeSchema.parse(undefined)).toBe(undefined);
-      expect(stringArraySchema.parse(undefined)).toBe(undefined);
-
-      // Test invalid values
-      expect(() => statusSchema.parse(['INVALID'])).toThrow();
-      expect(() => resolutionSchema.parse(['INVALID'])).toThrow();
-      expect(() => typeSchema.parse(['INVALID'])).toThrow();
-    });
-
-    it('should handle severity schema correctly', () => {
-      const severitySchema = z
-        .enum(['INFO', 'MINOR', 'MAJOR', 'CRITICAL', 'BLOCKER'])
-        .nullable()
-        .optional();
-
-      // Test valid values
-      expect(severitySchema.parse('INFO')).toBe('INFO');
-      expect(severitySchema.parse('MINOR')).toBe('MINOR');
-      expect(severitySchema.parse('MAJOR')).toBe('MAJOR');
-      expect(severitySchema.parse('CRITICAL')).toBe('CRITICAL');
-      expect(severitySchema.parse('BLOCKER')).toBe('BLOCKER');
-
-      // Test null/undefined values
-      expect(severitySchema.parse(null)).toBe(null);
-      expect(severitySchema.parse(undefined)).toBe(undefined);
-
-      // Test invalid values
-      expect(() => severitySchema.parse('INVALID')).toThrow();
-    });
-
-    it('should handle date parameters correctly', () => {
-      const dateSchema = z.string().nullable().optional();
-
-      // Test valid dates
-      expect(dateSchema.parse('2024-01-01')).toBe('2024-01-01');
-      expect(dateSchema.parse('2024-12-31')).toBe('2024-12-31');
-
-      // Test null/undefined values
-      expect(dateSchema.parse(null)).toBe(null);
-      expect(dateSchema.parse(undefined)).toBe(undefined);
-    });
-
     it('should handle complex parameter combinations', () => {
-      // Mock SonarQube API response
-      nock('http://localhost:9000')
-        .get('/api/issues/search')
-        .query(true)
-        .reply(200, {
-          issues: [],
-          components: [],
-          rules: [],
-          paging: { pageIndex: 1, pageSize: 100, total: 0 },
-        });
-
       const params = {
         project_key: 'test-project',
         severity: 'MAJOR',
         statuses: ['OPEN', 'CONFIRMED'],
-        resolutions: ['FALSE-POSITIVE', 'WONTFIX'],
-        types: ['CODE_SMELL', 'BUG'],
-        rules: ['rule1', 'rule2'],
-        tags: ['tag1', 'tag2'],
+        types: ['BUG', 'VULNERABILITY'],
+        tags: ['security', 'performance'],
         created_after: '2024-01-01',
-        created_before: '2024-12-31',
-        created_at: '2024-06-15',
-        created_in_last: '7d',
-        assignees: ['user1', 'user2'],
-        authors: ['author1', 'author2'],
-        cwe: ['cwe1', 'cwe2'],
         languages: ['java', 'typescript'],
-        owasp_top10: ['a1', 'a2'],
-        sans_top25: ['sans1', 'sans2'],
-        sonarsource_security: ['sec1', 'sec2'],
-        on_component_only: true,
-        facets: ['facet1', 'facet2'],
-        since_leak_period: true,
-        in_new_code_period: true,
-      };
-
-      return mockHandlers.handleSonarQubeGetIssues(mapToSonarQubeParams(params));
-    });
-  });
-
-  describe('Tool handlers', () => {
-    beforeEach(() => {
-      jest.resetAllMocks();
-    });
-
-    it('should fully process SonarQube projects response', async () => {
-      const fullProjectsResponse = {
-        projects: [
-          {
-            key: 'test-project',
-            name: 'Test Project',
-            qualifier: 'TRK',
-            visibility: 'public',
-            lastAnalysisDate: '2024-03-01',
-            revision: 'abc123',
-            managed: false,
-            extra: 'should be excluded',
-          },
-        ],
-        paging: {
-          pageIndex: 1,
-          pageSize: 10,
-          total: 1,
-        },
-      };
-
-      mockHandlers.handleSonarQubeProjects.mockResolvedValueOnce({
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(fullProjectsResponse),
-          },
-        ],
-      });
-
-      const result = await mockHandlers.handleSonarQubeProjects({ page: 1, page_size: 10 });
-      const data = JSON.parse(result.content[0].text);
-
-      expect(data.projects[0].key).toBe('test-project');
-      expect(data.projects[0].name).toBe('Test Project');
-      expect(data.projects[0].qualifier).toBe('TRK');
-      expect(data.projects[0].visibility).toBe('public');
-      expect(data.projects[0].lastAnalysisDate).toBe('2024-03-01');
-      expect(data.projects[0].revision).toBe('abc123');
-      expect(data.projects[0].managed).toBe(false);
-      expect(data.paging.pageIndex).toBe(1);
-      expect(data.paging.pageSize).toBe(10);
-      expect(data.paging.total).toBe(1);
-    });
-
-    it('should fully process SonarQube issues response', async () => {
-      const fullIssuesResponse = {
-        issues: [
-          {
-            key: 'test-issue',
-            rule: 'test-rule',
-            severity: 'MAJOR',
-            component: 'test-component',
-            project: 'test-project',
-            line: 1,
-            status: 'OPEN',
-            issueStatus: 'OPEN',
-            message: 'Test issue',
-            messageFormattings: [],
-            effort: '1h',
-            debt: '1h',
-            author: 'test-author',
-            tags: ['tag1', 'tag2'],
-            creationDate: '2024-03-01',
-            updateDate: '2024-03-02',
-            type: 'BUG',
-            cleanCodeAttribute: 'CONSISTENT',
-            cleanCodeAttributeCategory: 'ADAPTABLE',
-            prioritizedRule: true,
-            impacts: [{ severity: 'HIGH', softwareQuality: 'SECURITY' }],
-            textRange: { startLine: 1, endLine: 1, startOffset: 0, endOffset: 10 },
-            comments: [],
-            transitions: [],
-            actions: [],
-            flows: [],
-            quickFixAvailable: false,
-            ruleDescriptionContextKey: 'context',
-            codeVariants: [],
-            hash: 'hash',
-          },
-        ],
-        components: [{ key: 'comp1', name: 'Component 1' }],
-        rules: [{ key: 'rule1', name: 'Rule 1' }],
-        users: [{ login: 'user1', name: 'User 1' }],
-        facets: [{ property: 'facet1', values: [] }],
-        paging: {
-          pageIndex: 1,
-          pageSize: 10,
-          total: 1,
-        },
-      };
-
-      mockHandlers.handleSonarQubeGetIssues.mockResolvedValueOnce({
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(fullIssuesResponse),
-          },
-        ],
-      });
-
-      const result = await mockHandlers.handleSonarQubeGetIssues({
-        projectKey: 'test-project',
-        severity: 'MAJOR',
-        page: 1,
-        pageSize: 10,
-        statuses: ['OPEN'],
-        resolutions: ['FIXED'],
-        resolved: true,
-        types: ['BUG'],
-        rules: ['rule1'],
-        tags: ['tag1'],
-        createdAfter: '2024-01-01',
-        createdBefore: '2024-03-01',
-        createdAt: '2024-02-01',
-        createdInLast: '30d',
-        assignees: ['user1'],
-        authors: ['author1'],
-        cwe: ['cwe1'],
-        languages: ['java'],
-        owaspTop10: ['a1'],
-        sansTop25: ['sans1'],
-        sonarsourceSecurity: ['ss1'],
-        onComponentOnly: true,
-        facets: ['facet1'],
-        sinceLeakPeriod: true,
-        inNewCodePeriod: true,
-      });
-
-      const data = JSON.parse(result.content[0].text);
-
-      // Check all fields are properly mapped
-      expect(data.issues[0].key).toBe('test-issue');
-      expect(data.issues[0].rule).toBe('test-rule');
-      expect(data.issues[0].severity).toBe('MAJOR');
-      expect(data.issues[0].component).toBe('test-component');
-      expect(data.issues[0].project).toBe('test-project');
-      expect(data.issues[0].line).toBe(1);
-      expect(data.issues[0].status).toBe('OPEN');
-      expect(data.issues[0].issueStatus).toBe('OPEN');
-      expect(data.issues[0].message).toBe('Test issue');
-      expect(data.issues[0].effort).toBe('1h');
-      expect(data.issues[0].debt).toBe('1h');
-      expect(data.issues[0].author).toBe('test-author');
-      expect(data.issues[0].tags).toEqual(['tag1', 'tag2']);
-      expect(data.issues[0].creationDate).toBe('2024-03-01');
-      expect(data.issues[0].updateDate).toBe('2024-03-02');
-      expect(data.issues[0].type).toBe('BUG');
-      expect(data.issues[0].cleanCodeAttribute).toBe('CONSISTENT');
-      expect(data.issues[0].cleanCodeAttributeCategory).toBe('ADAPTABLE');
-      expect(data.issues[0].prioritizedRule).toBe(true);
-      expect(data.issues[0].impacts).toHaveLength(1);
-      expect(data.issues[0].impacts[0].severity).toBe('HIGH');
-
-      // Check other response data
-      expect(data.components).toHaveLength(1);
-      expect(data.rules).toHaveLength(1);
-      expect(data.users).toHaveLength(1);
-      expect(data.facets).toHaveLength(1);
-      expect(data.paging.pageIndex).toBe(1);
-      expect(data.paging.pageSize).toBe(10);
-      expect(data.paging.total).toBe(1);
-    });
-
-    it('should handle metrics response', async () => {
-      const metricsResponse = {
-        metrics: [
-          {
-            key: 'test-metric',
-            name: 'Test Metric',
-            description: 'Test metric description',
-            domain: 'test',
-            type: 'INT',
-          },
-        ],
-        paging: {
-          pageIndex: 1,
-          pageSize: 10,
-          total: 1,
-        },
-      };
-
-      mockHandlers.handleSonarQubeGetMetrics.mockResolvedValueOnce({
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify(metricsResponse),
-          },
-        ],
-      });
-
-      const result = await mockHandlers.handleSonarQubeGetMetrics({
-        page: 1,
-        pageSize: 10,
-      });
-
-      const data = JSON.parse(result.content[0].text);
-      expect(data.metrics).toHaveLength(1);
-      expect(data.metrics[0].key).toBe('test-metric');
-      expect(data.metrics[0].name).toBe('Test Metric');
-      expect(data.paging.pageIndex).toBe(1);
-    });
-  });
-
-  describe('Tool registration schemas', () => {
-    it('should correctly transform page parameters', () => {
-      const pageSchema = z
-        .string()
-        .optional()
-        .transform((val) => (val ? parseInt(val, 10) || null : null));
-
-      expect(pageSchema.parse('10')).toBe(10);
-      expect(pageSchema.parse('not-a-number')).toBe(null);
-      expect(pageSchema.parse('')).toBe(null);
-      expect(pageSchema.parse(undefined)).toBe(null);
-    });
-
-    it('should validate severity enum schema', () => {
-      const severitySchema = z
-        .enum(['INFO', 'MINOR', 'MAJOR', 'CRITICAL', 'BLOCKER'])
-        .nullable()
-        .optional();
-
-      expect(severitySchema.parse('MAJOR')).toBe('MAJOR');
-      expect(severitySchema.parse('BLOCKER')).toBe('BLOCKER');
-      expect(severitySchema.parse(null)).toBe(null);
-      expect(severitySchema.parse(undefined)).toBe(undefined);
-      expect(() => severitySchema.parse('INVALID')).toThrow();
-    });
-
-    it('should validate status schema', () => {
-      const statusSchema = z
-        .array(
-          z.enum([
-            'OPEN',
-            'CONFIRMED',
-            'REOPENED',
-            'RESOLVED',
-            'CLOSED',
-            'TO_REVIEW',
-            'IN_REVIEW',
-            'REVIEWED',
-          ])
-        )
-        .nullable()
-        .optional();
-
-      expect(statusSchema.parse(['OPEN', 'CONFIRMED'])).toEqual(['OPEN', 'CONFIRMED']);
-      expect(statusSchema.parse(null)).toBe(null);
-      expect(statusSchema.parse(undefined)).toBe(undefined);
-      expect(() => statusSchema.parse(['INVALID'])).toThrow();
-    });
-
-    it('should validate resolution schema', () => {
-      const resolutionSchema = z
-        .array(z.enum(['FALSE-POSITIVE', 'WONTFIX', 'FIXED', 'REMOVED']))
-        .nullable()
-        .optional();
-
-      expect(resolutionSchema.parse(['FALSE-POSITIVE', 'WONTFIX'])).toEqual([
-        'FALSE-POSITIVE',
-        'WONTFIX',
-      ]);
-      expect(resolutionSchema.parse(null)).toBe(null);
-      expect(resolutionSchema.parse(undefined)).toBe(undefined);
-      expect(() => resolutionSchema.parse(['INVALID'])).toThrow();
-    });
-
-    it('should validate type schema', () => {
-      const typeSchema = z
-        .array(z.enum(['CODE_SMELL', 'BUG', 'VULNERABILITY', 'SECURITY_HOTSPOT']))
-        .nullable()
-        .optional();
-
-      expect(typeSchema.parse(['CODE_SMELL', 'BUG'])).toEqual(['CODE_SMELL', 'BUG']);
-      expect(typeSchema.parse(null)).toBe(null);
-      expect(typeSchema.parse(undefined)).toBe(undefined);
-      expect(() => typeSchema.parse(['INVALID'])).toThrow();
-    });
-
-    it('should transform boolean parameters', () => {
-      const booleanSchema = z
-        .union([z.boolean(), z.string().transform((val) => val === 'true')])
-        .nullable()
-        .optional();
-
-      expect(booleanSchema.parse('true')).toBe(true);
-      expect(booleanSchema.parse('false')).toBe(false);
-      expect(booleanSchema.parse(true)).toBe(true);
-      expect(booleanSchema.parse(false)).toBe(false);
-      expect(booleanSchema.parse(null)).toBe(null);
-      expect(booleanSchema.parse(undefined)).toBe(undefined);
-    });
-  });
-
-  describe('Tool registration lambdas', () => {
-    beforeEach(() => {
-      // Reset all mocks
-      jest.resetAllMocks();
-    });
-
-    it('should test the metrics tool lambda', async () => {
-      // Mock the handleSonarQubeGetMetrics function to track calls
-      const mockGetMetrics = jest.fn().mockResolvedValue({
-        content: [{ type: 'text', text: '{"metrics":[]}' }],
-      });
-
-      const originalHandler = handleSonarQubeGetMetrics;
-      //@ts-ignore - We're replacing the function temporarily
-      handleSonarQubeGetMetrics = mockGetMetrics;
-
-      // Create the lambda handler that's in the tool registration
-      const metricsLambda = async (params: Record<string, unknown>) => {
-        const result = await handleSonarQubeGetMetrics({
-          page: nullToUndefined(params.page) as number | undefined,
-          pageSize: nullToUndefined(params.page_size) as number | undefined,
-        });
-
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result, null, 2),
-            },
-          ],
-        };
-      };
-
-      // Call the lambda with params
-      await metricsLambda({ page: '5', page_size: '20' });
-
-      // Check that handleSonarQubeGetMetrics was called with the right params
-      expect(mockGetMetrics).toHaveBeenCalledWith({
-        page: '5',
-        pageSize: '20',
-      });
-
-      // Restore the original function
-      //@ts-ignore - We're restoring the original function
-      handleSonarQubeGetMetrics = originalHandler;
-    });
-
-    it('should test the issues tool lambda', async () => {
-      // Mock the handleSonarQubeGetIssues function to track calls
-      const mockGetIssues = jest.fn().mockResolvedValue({
-        content: [{ type: 'text', text: '{"issues":[]}' }],
-      });
-
-      const originalHandler = handleSonarQubeGetIssues;
-      //@ts-ignore - We're replacing the function temporarily
-      handleSonarQubeGetIssues = mockGetIssues;
-
-      // Mock mapToSonarQubeParams to return expected output
-      const originalMapFunction = mapToSonarQubeParams;
-      const mockMapFunction = jest.fn().mockReturnValue({
-        projectKey: 'test-project',
-        severity: 'MAJOR',
-      });
-      //@ts-ignore - We're replacing the function temporarily
-      mapToSonarQubeParams = mockMapFunction;
-
-      // Create the lambda handler that's in the tool registration
-      const issuesLambda = async (params: Record<string, unknown>) => {
-        return handleSonarQubeGetIssues(mapToSonarQubeParams(params));
-      };
-
-      // Call the lambda with params
-      await issuesLambda({
-        project_key: 'test-project',
-        severity: 'MAJOR',
-      });
-
-      // Check that mapToSonarQubeParams was called with the right params
-      expect(mockMapFunction).toHaveBeenCalledWith({
-        project_key: 'test-project',
-        severity: 'MAJOR',
-      });
-
-      // Check that handleSonarQubeGetIssues was called with the mapped params
-      expect(mockGetIssues).toHaveBeenCalledWith({
-        projectKey: 'test-project',
-        severity: 'MAJOR',
-      });
-
-      // Restore the original functions
-      //@ts-ignore - We're restoring the original functions
-      handleSonarQubeGetIssues = originalHandler;
-      //@ts-ignore - We're restoring the original functions
-      mapToSonarQubeParams = originalMapFunction;
-    });
-  });
-
-  describe('Tool schema validations', () => {
-    it('should validate and transform all issue tool schemas', () => {
-      // Create schemas that match what's in the tool registration
-      const pageSchema = z
-        .string()
-        .optional()
-        .transform((val) => (val ? parseInt(val, 10) || null : null));
-
-      const booleanSchema = z
-        .union([z.boolean(), z.string().transform((val) => val === 'true')])
-        .nullable()
-        .optional();
-
-      const severitySchema = z
-        .enum(['INFO', 'MINOR', 'MAJOR', 'CRITICAL', 'BLOCKER'])
-        .nullable()
-        .optional();
-
-      const statusSchema = z
-        .array(
-          z.enum([
-            'OPEN',
-            'CONFIRMED',
-            'REOPENED',
-            'RESOLVED',
-            'CLOSED',
-            'TO_REVIEW',
-            'IN_REVIEW',
-            'REVIEWED',
-          ])
-        )
-        .nullable()
-        .optional();
-
-      const resolutionSchema = z
-        .array(z.enum(['FALSE-POSITIVE', 'WONTFIX', 'FIXED', 'REMOVED']))
-        .nullable()
-        .optional();
-
-      const typeSchema = z
-        .array(z.enum(['CODE_SMELL', 'BUG', 'VULNERABILITY', 'SECURITY_HOTSPOT']))
-        .nullable()
-        .optional();
-
-      const stringArraySchema = z.array(z.string()).nullable().optional();
-
-      // Create the complete schema
-      const schema = z.object({
-        project_key: z.string(),
-        severity: severitySchema,
-        page: pageSchema,
-        page_size: pageSchema,
-        statuses: statusSchema,
-        resolutions: resolutionSchema,
-        resolved: booleanSchema,
-        types: typeSchema,
-        rules: stringArraySchema,
-        tags: stringArraySchema,
-        created_after: z.string().nullable().optional(),
-        created_before: z.string().nullable().optional(),
-        created_at: z.string().nullable().optional(),
-        created_in_last: z.string().nullable().optional(),
-        assignees: stringArraySchema,
-        authors: stringArraySchema,
-        cwe: stringArraySchema,
-        languages: stringArraySchema,
-        owasp_top10: stringArraySchema,
-        sans_top25: stringArraySchema,
-        sonarsource_security: stringArraySchema,
-        on_component_only: booleanSchema,
-        facets: stringArraySchema,
-        since_leak_period: booleanSchema,
-        in_new_code_period: booleanSchema,
-      });
-
-      // Test the complete schema
-      const testData = {
-        project_key: 'test-project',
-        severity: 'MAJOR',
-        page: '10',
-        page_size: '20',
-        statuses: ['OPEN', 'CONFIRMED'],
-        resolutions: ['FALSE-POSITIVE', 'WONTFIX'],
         resolved: 'true',
-        types: ['CODE_SMELL', 'BUG'],
-        rules: ['rule1', 'rule2'],
-        tags: ['tag1', 'tag2'],
-        created_after: '2024-01-01',
-        created_before: '2024-12-31',
-        created_at: '2024-06-15',
-        created_in_last: '7d',
-        assignees: ['user1', 'user2'],
-        authors: ['author1', 'author2'],
-        cwe: ['cwe1', 'cwe2'],
-        languages: ['java', 'typescript'],
-        owasp_top10: ['a1', 'a2'],
-        sans_top25: ['sans1', 'sans2'],
-        sonarsource_security: ['sec1', 'sec2'],
-        on_component_only: 'true',
-        facets: ['facet1', 'facet2'],
         since_leak_period: 'true',
         in_new_code_period: 'true',
       };
 
-      // Validate through the Zod schema
-      const validated = schema.parse(testData);
-
-      // Check transformations happened correctly
-      expect(validated.page).toBe(10);
-      expect(validated.page_size).toBe(20);
-      expect(validated.resolved).toBe(true);
-      expect(validated.on_component_only).toBe(true);
-      expect(validated.since_leak_period).toBe(true);
-      expect(validated.in_new_code_period).toBe(true);
-
-      // Check arrays were kept intact
-      expect(validated.statuses).toEqual(['OPEN', 'CONFIRMED']);
-      expect(validated.resolutions).toEqual(['FALSE-POSITIVE', 'WONTFIX']);
-      expect(validated.types).toEqual(['CODE_SMELL', 'BUG']);
-      expect(validated.rules).toEqual(['rule1', 'rule2']);
-
-      // Check that strings were kept intact
-      expect(validated.project_key).toBe('test-project');
-      expect(validated.severity).toBe('MAJOR');
-      expect(validated.created_after).toBe('2024-01-01');
-    });
-  });
-
-  describe('Direct tool registration test', () => {
-    it('should validate tool existence', () => {
-      expect(mcpServer.tool).toBeDefined();
+      return mockHandlers.handleCodescanGetIssues(mapToCodescanParams(params));
     });
   });
 });

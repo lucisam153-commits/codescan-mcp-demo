@@ -1,12 +1,12 @@
 {
-  "name": "sonarqube-mcp-server",
+  "name": "codescan-mcp-server",
   "version": "1.1.0",
-  "description": "Model Context Protocol server for SonarQube",
+  "description": "Model Context Protocol server for Codescan",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "sonarqube-mcp-server": "./dist/index.js"
+    "codescan-mcp-server": "./dist/index.js"
   },
   "exports": {
     ".": {
@@ -16,10 +16,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sapientpants/sonarqube-mcp-server.git"
+    "url": "git+https://github.com/Presh-AR/codescan-mcp-server.git"
   },
   "bugs": {
-    "url": "https://github.com/sapientpants/sonarqube-mcp-server/issues"
+    "url": "https://github.com/Presh-AR/codescan-mcp-server/issues"
   },
   "scripts": {
     "build": "tsc",
@@ -47,12 +47,15 @@
     ]
   },
   "keywords": [
-    "sonarqube",
+    "codescan",
     "mcp",
     "model-context-protocol"
   ],
   "author": "Marc Tremblay <marc.tremblay@gmail.com>",
-  "homepage": "https://github.com/sapientpants/sonarqube-mcp-server",
+  "contributors": [
+    "Prasanth Samudrala <prasanth.s@autorabit.com>"
+  ],
+  "homepage": "https://github.com/Presh-AR/codescan-mcp-server",
   "license": "MIT",
   "packageManager": "pnpm@10.7.1",
   "dependencies": {

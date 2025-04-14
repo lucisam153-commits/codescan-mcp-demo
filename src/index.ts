@@ -3,12 +3,12 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
-  SonarQubeClient,
+  CodescanClient,
   IssuesParams,
   ProjectsParams,
-  SonarQubeProject,
+  CodescanProject,
   MetricsParams,
-} from './sonarqube.js';
+} from './codescan.js';
 import { z } from 'zod';
 
 interface Connectable {
@@ -32,23 +32,23 @@ function nullToUndefined<T>(value: T | null | undefined): T | undefined {
 
 // Initialize MCP server
 export const mcpServer = new McpServer({
-  name: 'sonarqube-mcp-server',
+  name: 'codescan-mcp-server',
   version: '1.1.0',
 });
 
-const client = new SonarQubeClient(
-  process.env.SONARQUBE_TOKEN!,
-  process.env.SONARQUBE_URL,
-  process.env.SONARQUBE_ORGANIZATION
+const client = new CodescanClient(
+  process.env.CODESCAN_TOKEN!,
+  process.env.CODESCAN_URL,
+  process.env.CODESCAN_ORGANIZATION
 );
 
 /**
- * Fetches and returns a list of all SonarQube projects
+ * Fetches and returns a list of all Codescan projects
  * @param params Parameters for listing projects, including pagination and organization
  * @returns A response containing the list of projects with their details
- * @throws Error if the SONARQUBE_TOKEN environment variable is not set
+ * @throws Error if the CODESCAN_TOKEN environment variable is not set
  */
-export async function handleSonarQubeProjects(params: {
+export async function handleCodescanProjects(params: {
   page?: number | null;
   page_size?: number | null;
 }) {
@@ -63,7 +63,7 @@ export async function handleSonarQubeProjects(params: {
       {
         type: 'text' as const,
         text: JSON.stringify({
-          projects: result.projects.map((project: SonarQubeProject) => ({
+          projects: result.projects.map((project: CodescanProject) => ({
             key: project.key,
             name: project.name,
             qualifier: project.qualifier,
@@ -80,11 +80,11 @@ export async function handleSonarQubeProjects(params: {
 }
 
 /**
- * Maps MCP tool parameters to SonarQube client parameters
+ * Maps MCP tool parameters to Codescan client parameters
  * @param params Parameters from the MCP tool
- * @returns Parameters for the SonarQube client
+ * @returns Parameters for the Codescan client
  */
-export function mapToSonarQubeParams(params: Record<string, unknown>): IssuesParams {
+export function mapToCodescanParams(params: Record<string, unknown>): IssuesParams {
   return {
     projectKey: params.project_key as string,
     severity: nullToUndefined(params.severity) as IssuesParams['severity'],
@@ -115,12 +115,12 @@ export function mapToSonarQubeParams(params: Record<string, unknown>): IssuesPar
 }
 
 /**
- * Fetches and returns issues from a specified SonarQube project
+ * Fetches and returns issues from a specified Codescan project
  * @param params Parameters for fetching issues, including project key, severity, and pagination
  * @returns A response containing the list of issues with their details
- * @throws Error if the SONARQUBE_TOKEN environment variable is not set
+ * @throws Error if the CODESCAN_TOKEN environment variable is not set
  */
-export async function handleSonarQubeGetIssues(params: IssuesParams) {
+export async function handleCodescanGetIssues(params: IssuesParams) {
   const result = await client.getIssues(params);
 
   return {
@@ -172,11 +172,11 @@ export async function handleSonarQubeGetIssues(params: IssuesParams) {
 }
 
 /**
- * Handler for getting SonarQube metrics
+ * Handler for getting Codescan metrics
  * @param params Parameters for the metrics request
  * @returns Promise with the metrics result
  */
-export async function handleSonarQubeGetMetrics(params: MetricsParams) {
+export async function handleCodescanGetMetrics(params: MetricsParams) {
   const result = await client.getMetrics(params);
 
   // Create a properly structured response matching the expected format
@@ -199,7 +199,7 @@ export async function handleSonarQubeGetMetrics(params: MetricsParams) {
   };
 }
 
-// Define SonarQube severity schema for validation
+// Define Codescan severity schema for validation
 const severitySchema = z
   .enum(['INFO', 'MINOR', 'MAJOR', 'CRITICAL', 'BLOCKER'])
   .nullable()
@@ -228,10 +228,10 @@ const typeSchema = z
   .nullable()
   .optional();
 
-// Register SonarQube tools
+// Register Codescan tools
 mcpServer.tool(
   'projects',
-  'List all SonarQube projects',
+  'List all Codescan projects',
   {
     page: z
       .string()
@@ -242,12 +242,12 @@ mcpServer.tool(
       .optional()
       .transform((val) => (val ? parseInt(val, 10) || null : null)),
   },
-  handleSonarQubeProjects
+  handleCodescanProjects
 );
 
 mcpServer.tool(
   'metrics',
-  'Get available metrics from SonarQube',
+  'Get available metrics from Codescan',
   {
     page: z
       .string()
@@ -258,26 +258,18 @@ mcpServer.tool(
       .optional()
       .transform((val) => (val ? parseInt(val, 10) || null : null)),
   },
-  async (params: Record<string, unknown>) => {
-    const result = await handleSonarQubeGetMetrics({
-      page: nullToUndefined(params.page) as number | undefined,
-      pageSize: nullToUndefined(params.page_size) as number | undefined,
-    });
-
-    return {
-      content: [
-        {
-          type: 'text',
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
+  async (params) => {
+    const metricsParams: MetricsParams = {
+      page: nullToUndefined(params.page),
+      pageSize: nullToUndefined(params.page_size),
     };
+    return handleCodescanGetMetrics(metricsParams);
   }
 );
 
 mcpServer.tool(
   'issues',
-  'Get issues for a SonarQube project',
+  'Get issues for a Codescan project',
   {
     project_key: z.string(),
     severity: severitySchema,
@@ -292,9 +284,9 @@ mcpServer.tool(
     statuses: statusSchema,
     resolutions: resolutionSchema,
     resolved: z
-      .union([z.boolean(), z.string().transform((val) => val === 'true')])
-      .nullable()
-      .optional(),
+      .string()
+      .optional()
+      .transform((val) => val === 'true'),
     types: typeSchema,
     rules: z.array(z.string()).nullable().optional(),
     tags: z.array(z.string()).nullable().optional(),
@@ -310,22 +302,20 @@ mcpServer.tool(
     sans_top25: z.array(z.string()).nullable().optional(),
     sonarsource_security: z.array(z.string()).nullable().optional(),
     on_component_only: z
-      .union([z.boolean(), z.string().transform((val) => val === 'true')])
-      .nullable()
-      .optional(),
+      .string()
+      .optional()
+      .transform((val) => val === 'true'),
     facets: z.array(z.string()).nullable().optional(),
     since_leak_period: z
-      .union([z.boolean(), z.string().transform((val) => val === 'true')])
-      .nullable()
-      .optional(),
+      .string()
+      .optional()
+      .transform((val) => val === 'true'),
     in_new_code_period: z
-      .union([z.boolean(), z.string().transform((val) => val === 'true')])
-      .nullable()
-      .optional(),
+      .string()
+      .optional()
+      .transform((val) => val === 'true'),
   },
-  async (params: Record<string, unknown>) => {
-    return handleSonarQubeGetIssues(mapToSonarQubeParams(params));
-  }
+  async (params) => handleCodescanGetIssues(mapToCodescanParams(params))
 );
 
 // Only start the server if not in test mode
