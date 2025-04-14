@@ -55,7 +55,27 @@ The Codescan MCP Server enables AI assistants to interact with Codescan's code q
   }
 }
 ```
+### NPX
+
+```json
+{
+  "mcpServers": {
+    "sonarqube": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "sonarqube-mcp-server@1.0.0"
+      ],
+      "env": {
+        "SONARQUBE_URL": "https://sonarqube.example.com",
+        "SONARQUBE_TOKEN": "your-sonarqube-token",
+        "SONARQUBE_ORGANIZATION": "your-organization-key (optional)"
+      }
+    }
+  }
+}
 ```
+
 
 ## Available Tools
 
