@@ -193,7 +193,7 @@ export interface CodescanProjectsResult {
  * Interface for get issues parameters
  */
 export interface IssuesParams extends PaginationParams {
-  projectKey: string;
+  component: string;
   severity?: 'INFO' | 'MINOR' | 'MAJOR' | 'CRITICAL' | 'BLOCKER';
   statuses?: (
     | 'OPEN'
@@ -230,7 +230,9 @@ export interface IssuesParams extends PaginationParams {
 /**
  * Interface for list projects parameters
  */
-export interface ProjectsParams extends PaginationParams {}
+export interface ProjectsParams extends PaginationParams {
+  projects?: string;
+}
 
 /**
  * Interface for raw Codescan component as returned by the API
@@ -276,7 +278,9 @@ export interface CodescanMetricsResult {
 /**
  * Interface for metrics parameters
  */
-export interface MetricsParams extends PaginationParams {}
+export interface MetricsParams extends PaginationParams {
+  component?: string;
+}
 
 /**
  * Codescan client for interacting with the Codescan API
@@ -285,22 +289,34 @@ export class CodescanClient {
   private readonly baseUrl: string;
   private readonly auth: { username: string; password: string };
   private readonly organization: string | null;
+  private readonly defaultComponent: string | null;
+  private readonly defaultProject: string | null;
 
   /**
    * Creates a new Codescan client
    * @param token Codescan authentication token
    * @param baseUrl Base URL of the Codescan instance (default: https://app.codescan.io)
    * @param organization Optional organization key
+   * @param defaultComponent Optional default component key
+   * @param defaultProject Optional default project key
    */
-  constructor(token: string, baseUrl = 'https://app.codescan.io', organization?: string | null) {
+  constructor(
+    token: string,
+    baseUrl = 'https://app.codescan.io',
+    organization?: string | null,
+    defaultComponent?: string | null,
+    defaultProject?: string | null
+  ) {
     this.baseUrl = baseUrl;
     this.auth = { username: token, password: '' };
     this.organization = organization ?? null;
+    this.defaultComponent = defaultComponent ?? null;
+    this.defaultProject = defaultProject ?? null;
   }
 
   /**
    * Lists all projects in Codescan
-   * @param params Optional parameters for pagination
+   * @param params Optional parameters for pagination and filtering
    * @returns Promise resolving to projects result
    */
   async listProjects(params: ProjectsParams = {}): Promise<CodescanProjectsResult> {
@@ -310,16 +326,20 @@ export class CodescanClient {
         params: {
           ...params,
           organization: this.organization,
+          projects: params.projects || this.defaultProject,
         },
       });
+
       console.log('listProjects API Response:', JSON.stringify(response.data, null, 2));
       if (response.data.errors) {
         throw new Error('Codescan API error: ' + JSON.stringify(response.data.errors));
       }
+
       const projects = response.data.components || response.data.projects || [];
       if (!Array.isArray(projects)) {
         throw new Error('API returned non-array projects: ' + JSON.stringify(projects));
       }
+
       return {
         projects: projects.map((project: CodescanApiComponent) => ({
           key: project.key,
@@ -354,16 +374,20 @@ export class CodescanClient {
         params: {
           ...params,
           organization: this.organization,
+          component: params.component || this.defaultComponent,
         },
       });
+
       console.log('getIssues API Response:', JSON.stringify(response.data, null, 2));
       if (response.data.errors) {
         throw new Error('Codescan API error: ' + JSON.stringify(response.data.errors));
       }
+
       const issues = response.data.issues || [];
       if (!Array.isArray(issues)) {
         throw new Error('API returned non-array issues: ' + JSON.stringify(issues));
       }
+
       return {
         issues: issues,
         components: response.data.components || [],
@@ -384,7 +408,7 @@ export class CodescanClient {
 
   /**
    * Gets available metrics from Codescan
-   * @param params Optional parameters for pagination
+   * @param params Optional parameters for pagination and filtering
    * @returns Promise resolving to metrics result
    */
   async getMetrics(params: MetricsParams = {}): Promise<CodescanMetricsResult> {
@@ -394,16 +418,20 @@ export class CodescanClient {
         params: {
           ...params,
           organization: this.organization,
+          component: params.component || this.defaultComponent,
         },
       });
+
       console.log('getMetrics API Response:', JSON.stringify(response.data, null, 2));
       if (response.data.errors) {
         throw new Error('Codescan API error: ' + JSON.stringify(response.data.errors));
       }
+
       const metrics = response.data.metrics || [];
       if (!Array.isArray(metrics)) {
         throw new Error('API returned non-array metrics: ' + JSON.stringify(metrics));
       }
+
       return {
         metrics: metrics,
         paging: response.data.paging || {

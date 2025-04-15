@@ -36,15 +36,28 @@ export const mcpServer = new McpServer({
   version: '1.1.0',
 });
 
+// Check for required environment variables
+if (!process.env.CODESCAN_TOKEN) {
+  console.error('Error: CODESCAN_TOKEN environment variable is required');
+  process.exit(1);
+}
+
+// Initialize client with environment variables
 const client = new CodescanClient(
-  process.env.CODESCAN_TOKEN!,
-  process.env.CODESCAN_URL,
-  process.env.CODESCAN_ORGANIZATION
+  process.env.CODESCAN_TOKEN,
+  process.env.CODESCAN_URL || 'https://app.codescan.io',
+  process.env.CODESCAN_ORGANIZATION || null,
+  process.env.CODESCAN_COMPONENT || null,
+  process.env.CODESCAN_PROJECT || null
 );
 
-console.log('CODESCAN_URL:', process.env.CODESCAN_URL);
-console.log('CODESCAN_TOKEN:', process.env.CODESCAN_TOKEN);
-console.log('CODESCAN_ORGANIZATION:', process.env.CODESCAN_ORGANIZATION);
+// Log configuration (without sensitive data)
+console.log('MCP Server Configuration:');
+console.log('CODESCAN_URL:', process.env.CODESCAN_URL || 'https://app.codescan.io (default)');
+console.log('CODESCAN_ORGANIZATION:', process.env.CODESCAN_ORGANIZATION || 'not set');
+console.log('CODESCAN_COMPONENT:', process.env.CODESCAN_COMPONENT || 'not set');
+console.log('CODESCAN_PROJECT:', process.env.CODESCAN_PROJECT || 'not set');
+console.log('CODESCAN_TOKEN:', process.env.CODESCAN_TOKEN ? '****' : 'not set');
 
 /**
  * Fetches and returns a list of all Codescan projects
@@ -52,21 +65,13 @@ console.log('CODESCAN_ORGANIZATION:', process.env.CODESCAN_ORGANIZATION);
  * @returns A response containing the list of projects with their details
  * @throws Error if the CODESCAN_TOKEN environment variable is not set
  */
-export async function handleCodescanProjects(params: {
-  page?: number | null;
-  page_size?: number | null;
-}) {
-  const projectsParams: ProjectsParams = {
-    page: nullToUndefined(params.page),
-    pageSize: nullToUndefined(params.page_size),
-  };
-
+export async function handleCodescanProjects(params: ProjectsParams) {
   let result;
   try {
-    result = await client.listProjects(projectsParams);
+    result = await client.listProjects(params);
     console.log('listProjects result:', JSON.stringify(result, null, 2));
-  } catch (error) {
-    throw new Error(`Failed to list projects: ${error.message}`);
+  } catch (error: any) {
+    throw new Error(`Failed to list projects: ${error?.message || 'Unknown error'}`);
   }
 
   if (!result || !Array.isArray(result.projects)) {
@@ -101,7 +106,7 @@ export async function handleCodescanProjects(params: {
  */
 export function mapToCodescanParams(params: Record<string, unknown>): IssuesParams {
   return {
-    projectKey: params.project_key as string,
+    component: params.component as string,
     severity: nullToUndefined(params.severity) as IssuesParams['severity'],
     page: nullToUndefined(params.page) as number | undefined,
     pageSize: nullToUndefined(params.page_size) as number | undefined,
@@ -140,8 +145,8 @@ export async function handleCodescanGetIssues(params: IssuesParams) {
   try {
     result = await client.getIssues(params);
     console.log('getIssues result:', JSON.stringify(result, null, 2));
-  } catch (error) {
-    throw new Error(`Failed to get issues: ${error.message}`);
+  } catch (error: any) {
+    throw new Error(`Failed to get issues: ${error?.message || 'Unknown error'}`);
   }
 
   if (!result || !Array.isArray(result.issues)) {
@@ -206,8 +211,8 @@ export async function handleCodescanGetMetrics(params: MetricsParams) {
   try {
     result = await client.getMetrics(params);
     console.log('getMetrics result:', JSON.stringify(result, null, 2));
-  } catch (error) {
-    throw new Error(`Failed to get metrics: ${error.message}`);
+  } catch (error: any) {
+    throw new Error(`Failed to get metrics: ${error?.message || 'Unknown error'}`);
   }
 
   if (!result || !Array.isArray(result.metrics)) {
@@ -269,8 +274,16 @@ mcpServer.tool(
       .string()
       .optional()
       .transform((val) => (val ? parseInt(val, 10) || null : null)),
+    projects: z.string().optional(),
   },
-  handleCodescanProjects
+  async (params) => {
+    const projectsParams: ProjectsParams = {
+      page: nullToUndefined(params.page),
+      pageSize: nullToUndefined(params.page_size),
+      projects: params.projects,
+    };
+    return handleCodescanProjects(projectsParams);
+  }
 );
 
 mcpServer.tool(
@@ -285,11 +298,13 @@ mcpServer.tool(
       .string()
       .optional()
       .transform((val) => (val ? parseInt(val, 10) || null : null)),
+    component: z.string().optional(),
   },
   async (params) => {
     const metricsParams: MetricsParams = {
       page: nullToUndefined(params.page),
       pageSize: nullToUndefined(params.page_size),
+      component: params.component,
     };
     return handleCodescanGetMetrics(metricsParams);
   }
@@ -299,7 +314,7 @@ mcpServer.tool(
   'issues',
   'Get issues for a Codescan project',
   {
-    project_key: z.string(),
+    component: z.string(),
     severity: severitySchema,
     page: z
       .string()
