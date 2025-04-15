@@ -1,0 +1,231 @@
+{
+  "name": "codescan-mcp-server",
+  "version": "1.1.0",
+  "description": "Model Context Protocol server for Codescan",
+  "tools": [
+    {
+      "name": "projects",
+      "description": "List all Codescan projects",
+      "parameters": {
+        "page": {
+          "type": "string",
+          "description": "Page number for pagination",
+          "optional": true
+        },
+        "page_size": {
+          "type": "string",
+          "description": "Number of items per page",
+          "optional": true
+        }
+      }
+    },
+    {
+      "name": "metrics",
+      "description": "Get available metrics from Codescan",
+      "parameters": {
+        "page": {
+          "type": "string",
+          "description": "Page number for pagination",
+          "optional": true
+        },
+        "page_size": {
+          "type": "string",
+          "description": "Number of items per page",
+          "optional": true
+        }
+      }
+    },
+    {
+      "name": "issues",
+      "description": "Get issues for a Codescan project",
+      "parameters": {
+        "project_key": {
+          "type": "string",
+          "description": "The unique identifier for the Codescan project",
+          "required": true
+        },
+        "severity": {
+          "type": "string",
+          "description": "Filter issues by severity (INFO, MINOR, MAJOR, CRITICAL, BLOCKER)",
+          "enum": ["INFO", "MINOR", "MAJOR", "CRITICAL", "BLOCKER"],
+          "optional": true
+        },
+        "page": {
+          "type": "string",
+          "description": "Page number for pagination",
+          "optional": true
+        },
+        "page_size": {
+          "type": "string",
+          "description": "Number of items per page",
+          "optional": true
+        },
+        "statuses": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["OPEN", "CONFIRMED", "REOPENED", "RESOLVED", "CLOSED", "TO_REVIEW", "IN_REVIEW", "REVIEWED"]
+          },
+          "description": "Filter issues by status",
+          "optional": true
+        },
+        "resolutions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["FALSE-POSITIVE", "WONTFIX", "FIXED", "REMOVED"]
+          },
+          "description": "Filter issues by resolution",
+          "optional": true
+        },
+        "resolved": {
+          "type": "string",
+          "description": "Whether to return only resolved issues (true) or unresolved issues (false)",
+          "optional": true
+        },
+        "types": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["CODE_SMELL", "BUG", "VULNERABILITY", "SECURITY_HOTSPOT"]
+          },
+          "description": "Filter issues by type",
+          "optional": true
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of rule keys to filter issues",
+          "optional": true
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of tags to filter issues",
+          "optional": true
+        },
+        "created_after": {
+          "type": "string",
+          "description": "Return issues created after the given date (format: YYYY-MM-DD)",
+          "optional": true
+        },
+        "created_before": {
+          "type": "string",
+          "description": "Return issues created before the given date (format: YYYY-MM-DD)",
+          "optional": true
+        },
+        "created_at": {
+          "type": "string",
+          "description": "Return issues created on the given date",
+          "optional": true
+        },
+        "created_in_last": {
+          "type": "string",
+          "description": "Return issues created during a time span before the current time (e.g., '1d' for issues created in the last day)",
+          "optional": true
+        },
+        "assignees": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of assignee login names to filter issues",
+          "optional": true
+        },
+        "authors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of author login names to filter issues",
+          "optional": true
+        },
+        "cwe": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of CWE identifiers to filter vulnerability issues",
+          "optional": true
+        },
+        "languages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of languages to filter issues",
+          "optional": true
+        },
+        "owasp_top10": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of OWASP Top 10 categories to filter issues",
+          "optional": true
+        },
+        "sans_top25": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of SANS Top 25 categories to filter issues",
+          "optional": true
+        },
+        "sonarsource_security": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of SonarSource security categories to filter issues",
+          "optional": true
+        },
+        "on_component_only": {
+          "type": "string",
+          "description": "Return only issues at the specified component level (true) or issues from the component's subtree (false)",
+          "optional": true
+        },
+        "facets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of facets to return along with the issues",
+          "optional": true
+        },
+        "since_leak_period": {
+          "type": "string",
+          "description": "Return only issues created since the leak period",
+          "optional": true
+        },
+        "in_new_code_period": {
+          "type": "string",
+          "description": "Return only issues created in the new code period",
+          "optional": true
+        }
+      }
+    }
+  ],
+  "env": {
+    "CODESCAN_URL": {
+      "type": "string",
+      "description": "URL of your Codescan instance",
+      "required": true,
+      "default": "https://app.codescan.io/"
+    },
+    "CODESCAN_TOKEN": {
+      "type": "string",
+      "description": "Authentication token for Codescan API access",
+      "required": true
+    },
+    "CODESCAN_ORGANIZATION": {
+      "type": "string",
+      "description": "Organization key for Codescan Cloud",
+      "required": false
+    }
+  }
+} 

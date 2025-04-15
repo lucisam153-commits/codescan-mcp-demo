@@ -312,18 +312,24 @@ export class CodescanClient {
       },
     });
 
-    // Transform Codescan 'components' to our clean 'projects' interface
+    // Handle both 'components' and 'projects' in the response
+    const projects = response.data.components || response.data.projects || [];
+    
     return {
-      projects: response.data.components.map((component: CodescanApiComponent) => ({
-        key: component.key,
-        name: component.name,
-        qualifier: component.qualifier,
-        visibility: component.visibility,
-        lastAnalysisDate: component.lastAnalysisDate,
-        revision: component.revision,
-        managed: component.managed,
+      projects: projects.map((project: CodescanApiComponent) => ({
+        key: project.key,
+        name: project.name,
+        qualifier: project.qualifier,
+        visibility: project.visibility,
+        lastAnalysisDate: project.lastAnalysisDate,
+        revision: project.revision,
+        managed: project.managed,
       })),
-      paging: response.data.paging,
+      paging: response.data.paging || {
+        pageIndex: 1,
+        pageSize: projects.length,
+        total: projects.length,
+      },
     };
   }
 
@@ -341,7 +347,18 @@ export class CodescanClient {
       },
     });
 
-    return response.data;
+    return {
+      issues: response.data.issues || [],
+      components: response.data.components || [],
+      rules: response.data.rules || [],
+      users: response.data.users || [],
+      facets: response.data.facets || [],
+      paging: response.data.paging || {
+        pageIndex: 1,
+        pageSize: (response.data.issues || []).length,
+        total: (response.data.issues || []).length,
+      },
+    };
   }
 
   /**
@@ -358,6 +375,13 @@ export class CodescanClient {
       },
     });
 
-    return response.data;
+    return {
+      metrics: response.data.metrics || [],
+      paging: response.data.paging || {
+        pageIndex: 1,
+        pageSize: (response.data.metrics || []).length,
+        total: (response.data.metrics || []).length,
+      },
+    };
   }
 }
