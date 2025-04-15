@@ -1,5 +1,5 @@
 /** @type {import('jest').Config} */
-export default {
+module.exports = {
   preset: 'ts-jest/presets/default-esm',
   testEnvironment: 'node',
   testMatch: ['**/__tests__/**/*.test.ts'],
@@ -8,15 +8,12 @@ export default {
     '^(\\.{1,2}/.*)\\.ts$': '$1',
   },
   transform: {
-    '^.+\\.tsx?$': [
-      'ts-jest',
-      {
-        useESM: true,
-        tsconfig: {
-          moduleResolution: "NodeNext"
-        }
-      },
-    ],
+    '^.+\\.tsx?$': ['ts-jest', {
+      useESM: true,
+      tsconfig: {
+        moduleResolution: "NodeNext"
+      }
+    }],
   },
   extensionsToTreatAsEsm: ['.ts'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
@@ -29,4 +26,8 @@ export default {
     '!src/**/*.test.ts',
   ],
   coverageReporters: ['text', 'lcov'],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  experimental: {
+    esm: true
+  }
 }; 

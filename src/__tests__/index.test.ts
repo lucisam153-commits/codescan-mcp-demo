@@ -6,8 +6,30 @@
 
 import { describe, it, expect, beforeEach, afterEach, beforeAll, jest } from '@jest/globals';
 import nock from 'nock';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { CodescanClient } from '../codescan.js';
+import {
+  handleCodescanProjects,
+  handleCodescanGetIssues,
+  handleCodescanGetMetrics,
+  mapToCodescanParams,
+  nullToUndefined,
+} from '../index.js';
+
+// Mock MCP SDK modules
+const mockMcpServer = {
+  tool: jest.fn(),
+  connect: jest.fn()
+};
+
+const mockStdioTransport = {
+  connect: jest.fn()
+};
+
+jest.mock('@modelcontextprotocol/sdk', () => ({
+  McpServer: jest.fn(() => mockMcpServer),
+  StdioServerTransport: jest.fn(() => mockStdioTransport)
+}));
 
 // Mock environment variables
 process.env.CODESCAN_TOKEN = 'test-token';
@@ -389,6 +411,302 @@ describe('MCP Server', () => {
       };
 
       return mockHandlers.handleCodescanGetIssues(mapToCodescanParams(params));
+    });
+  });
+});
+
+describe('MCP Server Handlers', () => {
+  let mockClient: jest.Mocked<CodescanClient>;
+
+  beforeEach(() => {
+    // Reset mocks before each test
+    jest.clearAllMocks();
+    
+    // Create a mock client
+    mockClient = {
+      listProjects: jest.fn(),
+      getIssues: jest.fn(),
+      getMetrics: jest.fn()
+    } as unknown as jest.Mocked<CodescanClient>;
+  });
+
+  describe('nullToUndefined', () => {
+    it('should convert null to undefined', () => {
+      expect(nullToUndefined(null)).toBeUndefined();
+    });
+
+    it('should return the original value if not null', () => {
+      expect(nullToUndefined('test')).toBe('test');
+      expect(nullToUndefined(123)).toBe(123);
+      expect(nullToUndefined(true)).toBe(true);
+      expect(nullToUndefined({})).toEqual({});
+      expect(nullToUndefined([])).toEqual([]);
+    });
+  });
+
+  describe('mapToCodescanParams', () => {
+    it('should map MCP tool parameters to Codescan client parameters', () => {
+      const params = {
+        component: 'test-component',
+        severity: 'MAJOR',
+        page: '1',
+        page_size: '10',
+        statuses: ['OPEN', 'CONFIRMED'],
+        resolutions: ['FIXED'],
+        resolved: 'true',
+        types: ['BUG', 'VULNERABILITY'],
+        rules: ['rule1', 'rule2'],
+        tags: ['tag1', 'tag2'],
+        created_after: '2023-01-01',
+        created_before: '2023-12-31',
+        created_at: '2023-06-15',
+        created_in_last: '1d',
+        assignees: ['user1', 'user2'],
+        authors: ['author1', 'author2'],
+        cwe: ['cwe1', 'cwe2'],
+        languages: ['java', 'javascript'],
+        owasp_top10: ['a1', 'a2'],
+        sans_top25: ['s1', 's2'],
+        sonarsource_security: ['ss1', 'ss2'],
+        on_component_only: 'true',
+        facets: ['f1', 'f2'],
+        since_leak_period: 'true',
+        in_new_code_period: 'true',
+      };
+
+      const result = mapToCodescanParams(params);
+
+      expect(result).toEqual({
+        component: 'test-component',
+        severity: 'MAJOR',
+        page: 1,
+        pageSize: 10,
+        statuses: ['OPEN', 'CONFIRMED'],
+        resolutions: ['FIXED'],
+        resolved: true,
+        types: ['BUG', 'VULNERABILITY'],
+        rules: ['rule1', 'rule2'],
+        tags: ['tag1', 'tag2'],
+        createdAfter: '2023-01-01',
+        createdBefore: '2023-12-31',
+        createdAt: '2023-06-15',
+        createdInLast: '1d',
+        assignees: ['user1', 'user2'],
+        authors: ['author1', 'author2'],
+        cwe: ['cwe1', 'cwe2'],
+        languages: ['java', 'javascript'],
+        owaspTop10: ['a1', 'a2'],
+        sansTop25: ['s1', 's2'],
+        sonarsourceSecurity: ['ss1', 'ss2'],
+        onComponentOnly: true,
+        facets: ['f1', 'f2'],
+        sinceLeakPeriod: true,
+        inNewCodePeriod: true,
+      });
+    });
+
+    it('should handle null values', () => {
+      const params = {
+        component: 'test-component',
+        severity: null,
+        statuses: null,
+        resolutions: null,
+        types: null,
+        rules: null,
+        tags: null,
+        created_after: null,
+        created_before: null,
+        created_at: null,
+        created_in_last: null,
+        assignees: null,
+        authors: null,
+        cwe: null,
+        languages: null,
+        owasp_top10: null,
+        sans_top25: null,
+        sonarsource_security: null,
+        facets: null,
+      };
+
+      const result = mapToCodescanParams(params);
+
+      expect(result).toEqual({
+        component: 'test-component',
+        severity: undefined,
+        statuses: undefined,
+        resolutions: undefined,
+        types: undefined,
+        rules: undefined,
+        tags: undefined,
+        createdAfter: undefined,
+        createdBefore: undefined,
+        createdAt: undefined,
+        createdInLast: undefined,
+        assignees: undefined,
+        authors: undefined,
+        cwe: undefined,
+        languages: undefined,
+        owaspTop10: undefined,
+        sansTop25: undefined,
+        sonarsourceSecurity: undefined,
+        facets: undefined,
+      });
+    });
+  });
+
+  describe('handleCodescanProjects', () => {
+    it('should return projects successfully', async () => {
+      const mockResult = {
+        projects: [
+          {
+            key: 'project1',
+            name: 'Project 1',
+            qualifier: 'TRK',
+            visibility: 'public',
+            lastAnalysisDate: '2023-01-01',
+            revision: '1.0',
+            managed: true,
+          },
+        ],
+        paging: {
+          pageIndex: 1,
+          pageSize: 10,
+          total: 1,
+        },
+      };
+
+      mockClient.listProjects.mockResolvedValueOnce(mockResult);
+
+      const result = await handleCodescanProjects({
+        page: 1,
+        pageSize: 10,
+        projects: 'test-project',
+      });
+
+      expect(result.content).toHaveLength(1);
+      expect(result.content[0].type).toBe('text');
+      expect(JSON.parse(result.content[0].text)).toEqual(mockResult);
+      expect(mockClient.listProjects).toHaveBeenCalledWith({
+        page: 1,
+        pageSize: 10,
+        projects: 'test-project',
+      });
+    });
+
+    it('should handle errors', async () => {
+      mockClient.listProjects.mockRejectedValueOnce(new Error('API Error'));
+
+      await expect(handleCodescanProjects({})).rejects.toThrow('Failed to list projects: API Error');
+    });
+  });
+
+  describe('handleCodescanGetIssues', () => {
+    it('should return issues successfully', async () => {
+      const mockResult = {
+        issues: [
+          {
+            key: 'issue1',
+            rule: 'rule1',
+            severity: 'MAJOR',
+            component: 'component1',
+            project: 'project1',
+            line: 10,
+            status: 'OPEN',
+            message: 'Test issue',
+            creationDate: '2023-01-01',
+            updateDate: '2023-01-01',
+            type: 'BUG',
+            tags: ['test'],
+          },
+        ],
+        components: [],
+        rules: [],
+        users: [],
+        facets: [],
+        paging: {
+          pageIndex: 1,
+          pageSize: 10,
+          total: 1,
+        },
+      };
+
+      mockClient.getIssues.mockResolvedValueOnce(mockResult);
+
+      const result = await handleCodescanGetIssues({
+        component: 'test-component',
+        severity: 'MAJOR',
+        page: 1,
+        pageSize: 10,
+      });
+
+      expect(result.content).toHaveLength(1);
+      expect(result.content[0].type).toBe('text');
+      expect(JSON.parse(result.content[0].text)).toEqual(mockResult);
+      expect(mockClient.getIssues).toHaveBeenCalledWith({
+        component: 'test-component',
+        severity: 'MAJOR',
+        page: 1,
+        pageSize: 10,
+      });
+    });
+
+    it('should handle errors', async () => {
+      mockClient.getIssues.mockRejectedValueOnce(new Error('API Error'));
+
+      await expect(handleCodescanGetIssues({
+        component: 'test-component',
+      })).rejects.toThrow('Failed to get issues: API Error');
+    });
+  });
+
+  describe('handleCodescanGetMetrics', () => {
+    it('should return metrics successfully', async () => {
+      const mockResult = {
+        metrics: [
+          {
+            id: 'metric1',
+            key: 'bugs',
+            name: 'Bugs',
+            description: 'Number of bugs',
+            domain: 'Reliability',
+            type: 'INT',
+            direction: 0,
+            qualitative: false,
+            hidden: false,
+            custom: false,
+          },
+        ],
+        paging: {
+          pageIndex: 1,
+          pageSize: 10,
+          total: 1,
+        },
+      };
+
+      mockClient.getMetrics.mockResolvedValueOnce(mockResult);
+
+      const result = await handleCodescanGetMetrics({
+        page: 1,
+        pageSize: 10,
+        component: 'test-component',
+      });
+
+      expect(result.content).toHaveLength(1);
+      expect(result.content[0].type).toBe('text');
+      expect(JSON.parse(result.content[0].text)).toEqual(mockResult);
+      expect(mockClient.getMetrics).toHaveBeenCalledWith({
+        page: 1,
+        pageSize: 10,
+        component: 'test-component',
+      });
+    });
+
+    it('should handle errors', async () => {
+      mockClient.getMetrics.mockRejectedValueOnce(new Error('API Error'));
+
+      await expect(handleCodescanGetMetrics({
+        component: 'test-component',
+      })).rejects.toThrow('Failed to get metrics: API Error');
     });
   });
 });

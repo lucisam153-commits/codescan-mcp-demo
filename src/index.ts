@@ -235,7 +235,6 @@ export async function handleCodescanGetMetrics(params: MetricsParams) {
 // Define Codescan severity schema for validation
 const severitySchema = z
   .enum(['INFO', 'MINOR', 'MAJOR', 'CRITICAL', 'BLOCKER'])
-  .nullable()
   .optional();
 const statusSchema = z
   .array(
