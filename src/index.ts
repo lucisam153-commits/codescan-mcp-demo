@@ -36,46 +36,94 @@ export const mcpServer = new McpServer({
   version: '1.1.0',
 });
 
-// Check for required environment variables
-if (!process.env.CODESCAN_TOKEN) {
-  console.error('Error: CODESCAN_TOKEN environment variable is required');
-  process.exit(1);
-}
-
-// Initialize client with environment variables
-const client = new CodescanClient(
-  process.env.CODESCAN_TOKEN,
-  process.env.CODESCAN_URL || 'https://app.codescan.io',
-  process.env.CODESCAN_ORGANIZATION || null,
-  process.env.CODESCAN_COMPONENT || null,
-  process.env.CODESCAN_PROJECT || null
-);
-
-// Log configuration (without sensitive data)
+// Log configuration
 console.log('MCP Server Configuration:');
 console.log('CODESCAN_URL:', process.env.CODESCAN_URL || 'https://app.codescan.io (default)');
 console.log('CODESCAN_ORGANIZATION:', process.env.CODESCAN_ORGANIZATION || 'not set');
 console.log('CODESCAN_COMPONENT:', process.env.CODESCAN_COMPONENT || 'not set');
 console.log('CODESCAN_PROJECT:', process.env.CODESCAN_PROJECT || 'not set');
-console.log('CODESCAN_TOKEN:', process.env.CODESCAN_TOKEN ? '****' : 'not set');
+
+/**
+ * Creates a new Codescan client with the provided token
+ * @param token The Codescan API token
+ * @returns A new CodescanClient instance
+ */
+function createClient(token: string): CodescanClient {
+  return new CodescanClient(
+    token,
+    process.env.CODESCAN_URL || 'https://app.codescan.io',
+    process.env.CODESCAN_ORGANIZATION || null,
+    process.env.CODESCAN_COMPONENT || null,
+    process.env.CODESCAN_PROJECT || null
+  );
+}
 
 /**
  * Fetches and returns a list of all Codescan projects
  * @param params Parameters for listing projects, including pagination and organization
  * @returns A response containing the list of projects with their details
- * @throws Error if the CODESCAN_TOKEN environment variable is not set
  */
-export async function handleCodescanProjects(params: ProjectsParams) {
+export async function handleCodescanProjects(params: ProjectsParams & { token?: string }) {
+  if (!params.token) {
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: JSON.stringify({
+            error: 'Token is required',
+            projects: [],
+            paging: {
+              pageIndex: params.page || 1,
+              pageSize: params.pageSize || 0,
+              total: 0
+            }
+          })
+        }
+      ]
+    };
+  }
+
+  const client = createClient(params.token);
   let result;
   try {
     result = await client.listProjects(params);
     console.log('listProjects result:', JSON.stringify(result, null, 2));
   } catch (error: any) {
-    throw new Error(`Failed to list projects: ${error?.message || 'Unknown error'}`);
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: JSON.stringify({
+            error: `Failed to list projects: ${error?.message || 'Unknown error'}`,
+            projects: [],
+            paging: {
+              pageIndex: params.page || 1,
+              pageSize: params.pageSize || 0,
+              total: 0
+            }
+          })
+        }
+      ]
+    };
   }
 
   if (!result || !Array.isArray(result.projects)) {
-    throw new Error('Invalid response from listProjects: projects is not an array');
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: JSON.stringify({
+            error: 'Invalid response from listProjects: projects is not an array',
+            projects: [],
+            paging: {
+              pageIndex: params.page || 1,
+              pageSize: params.pageSize || 0,
+              total: 0
+            }
+          })
+        }
+      ]
+    };
   }
 
   return {
@@ -93,9 +141,9 @@ export async function handleCodescanProjects(params: ProjectsParams) {
             managed: project.managed,
           })),
           paging: result.paging,
-        }),
-      },
-    ],
+        })
+      }
+    ]
   };
 }
 
@@ -104,100 +152,70 @@ export async function handleCodescanProjects(params: ProjectsParams) {
  * @param params Parameters from the MCP tool
  * @returns Parameters for the Codescan client
  */
-export function mapToCodescanParams(params: Record<string, unknown>): IssuesParams {
+function mapToCodescanParams(params: any): IssuesParams & { token: string } {
   return {
-    component: params.component as string,
-    severity: nullToUndefined(params.severity) as IssuesParams['severity'],
-    page: nullToUndefined(params.page) as number | undefined,
-    pageSize: nullToUndefined(params.page_size) as number | undefined,
-    statuses: nullToUndefined(params.statuses) as IssuesParams['statuses'],
-    resolutions: nullToUndefined(params.resolutions) as IssuesParams['resolutions'],
-    resolved: nullToUndefined(params.resolved) as boolean | undefined,
-    types: nullToUndefined(params.types) as IssuesParams['types'],
-    rules: nullToUndefined(params.rules) as string[] | undefined,
-    tags: nullToUndefined(params.tags) as string[] | undefined,
-    createdAfter: nullToUndefined(params.created_after) as string | undefined,
-    createdBefore: nullToUndefined(params.created_before) as string | undefined,
-    createdAt: nullToUndefined(params.created_at) as string | undefined,
-    createdInLast: nullToUndefined(params.created_in_last) as string | undefined,
-    assignees: nullToUndefined(params.assignees) as string[] | undefined,
-    authors: nullToUndefined(params.authors) as string[] | undefined,
-    cwe: nullToUndefined(params.cwe) as string[] | undefined,
-    languages: nullToUndefined(params.languages) as string[] | undefined,
-    owaspTop10: nullToUndefined(params.owasp_top10) as string[] | undefined,
-    sansTop25: nullToUndefined(params.sans_top25) as string[] | undefined,
-    sonarsourceSecurity: nullToUndefined(params.sonarsource_security) as string[] | undefined,
-    onComponentOnly: nullToUndefined(params.on_component_only) as boolean | undefined,
-    facets: nullToUndefined(params.facets) as string[] | undefined,
-    sinceLeakPeriod: nullToUndefined(params.since_leak_period) as boolean | undefined,
-    inNewCodePeriod: nullToUndefined(params.in_new_code_period) as boolean | undefined,
+    token: params.token,
+    component: params.component,
+    severity: params.severity,
+    page: nullToUndefined(params.page),
+    pageSize: nullToUndefined(params.page_size),
+    statuses: params.statuses,
+    resolutions: params.resolutions,
+    resolved: params.resolved,
+    types: params.types,
+    rules: params.rules,
+    tags: params.tags,
+    createdAfter: params.created_after,
+    createdBefore: params.created_before,
+    createdAt: params.created_at,
+    createdInLast: params.created_in_last,
+    assignees: params.assignees,
+    authors: params.authors,
+    cwe: params.cwe,
+    languages: params.languages,
+    owaspTop10: params.owasp_top10,
+    sansTop25: params.sans_top25,
+    sonarsourceSecurity: params.sonarsource_security,
+    onComponentOnly: params.on_component_only,
+    facets: params.facets,
+    sinceLeakPeriod: params.since_leak_period,
+    inNewCodePeriod: params.in_new_code_period,
   };
+}
+
+interface CodescanIssue {
+  key: string;
+  rule: string;
+  severity: string;
+  component: string;
+  project: string;
+  line?: number;
+  status: string;
+  message: string;
+  effort?: string;
+  debt?: string;
+  author?: string;
+  tags?: string[];
+  creationDate: string;
+  updateDate: string;
+  type: string;
 }
 
 /**
  * Fetches and returns issues from a specified Codescan project
  * @param params Parameters for fetching issues, including project key, severity, and pagination
  * @returns A response containing the list of issues with their details
- * @throws Error if the CODESCAN_TOKEN environment variable is not set
  */
-export async function handleCodescanGetIssues(params: IssuesParams) {
-  let result;
-  try {
-    result = await client.getIssues(params);
-    console.log('getIssues result:', JSON.stringify(result, null, 2));
-  } catch (error: any) {
-    throw new Error(`Failed to get issues: ${error?.message || 'Unknown error'}`);
-  }
-
-  if (!result || !Array.isArray(result.issues)) {
-    throw new Error('Invalid response from getIssues: issues is not an array');
-  }
-
+export async function handleCodescanGetIssues(params: IssuesParams & { token: string }): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
+  const client = new CodescanClient(params.token);
+  const result = await client.getIssues(params);
   return {
     content: [
       {
-        type: 'text' as const,
-        text: JSON.stringify({
-          issues: result.issues.map((issue) => ({
-            key: issue.key,
-            rule: issue.rule,
-            severity: issue.severity,
-            component: issue.component,
-            project: issue.project,
-            line: issue.line,
-            status: issue.status,
-            issueStatus: issue.issueStatus,
-            message: issue.message,
-            messageFormattings: issue.messageFormattings,
-            effort: issue.effort,
-            debt: issue.debt,
-            author: issue.author,
-            tags: issue.tags,
-            creationDate: issue.creationDate,
-            updateDate: issue.updateDate,
-            type: issue.type,
-            cleanCodeAttribute: issue.cleanCodeAttribute,
-            cleanCodeAttributeCategory: issue.cleanCodeAttributeCategory,
-            prioritizedRule: issue.prioritizedRule,
-            impacts: issue.impacts,
-            textRange: issue.textRange,
-            comments: issue.comments,
-            transitions: issue.transitions,
-            actions: issue.actions,
-            flows: issue.flows,
-            quickFixAvailable: issue.quickFixAvailable,
-            ruleDescriptionContextKey: issue.ruleDescriptionContextKey,
-            codeVariants: issue.codeVariants,
-            hash: issue.hash,
-          })),
-          components: result.components,
-          rules: result.rules,
-          users: result.users,
-          facets: result.facets,
-          paging: result.paging,
-        }),
-      },
-    ],
+        type: 'text',
+        text: JSON.stringify(result)
+      }
+    ]
   };
 }
 
@@ -206,17 +224,67 @@ export async function handleCodescanGetIssues(params: IssuesParams) {
  * @param params Parameters for the metrics request
  * @returns Promise with the metrics result
  */
-export async function handleCodescanGetMetrics(params: MetricsParams) {
+export async function handleCodescanGetMetrics(params: MetricsParams & { token?: string }) {
+  if (!params.token) {
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: JSON.stringify({
+            error: 'Token is required',
+            metrics: [],
+            paging: {
+              pageIndex: params.page || 1,
+              pageSize: params.pageSize || 0,
+              total: 0
+            }
+          })
+        }
+      ]
+    };
+  }
+
+  const client = createClient(params.token);
   let result;
   try {
     result = await client.getMetrics(params);
     console.log('getMetrics result:', JSON.stringify(result, null, 2));
   } catch (error: any) {
-    throw new Error(`Failed to get metrics: ${error?.message || 'Unknown error'}`);
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: JSON.stringify({
+            error: `Failed to get metrics: ${error?.message || 'Unknown error'}`,
+            metrics: [],
+            paging: {
+              pageIndex: params.page || 1,
+              pageSize: params.pageSize || 0,
+              total: 0
+            }
+          })
+        }
+      ]
+    };
   }
 
   if (!result || !Array.isArray(result.metrics)) {
-    throw new Error('Invalid response from getMetrics: metrics is not an array');
+    return {
+      content: [
+        {
+          type: 'text' as const,
+          text: JSON.stringify({
+            error: 'Invalid response from getMetrics: metrics is not an array',
+            metrics: [],
+            paging: {
+              pageIndex: params.page || 1,
+              pageSize: params.pageSize || 0,
+              total: 0
+            }
+          })
+        }
+      ]
+    };
   }
 
   return {
@@ -226,9 +294,9 @@ export async function handleCodescanGetMetrics(params: MetricsParams) {
         text: JSON.stringify({
           metrics: result.metrics,
           paging: result.paging,
-        }),
-      },
-    ],
+        })
+      }
+    ]
   };
 }
 
@@ -265,6 +333,7 @@ mcpServer.tool(
   'projects',
   'List all Codescan projects',
   {
+    token: z.string(),
     page: z
       .string()
       .optional()
@@ -276,7 +345,8 @@ mcpServer.tool(
     projects: z.string().optional(),
   },
   async (params) => {
-    const projectsParams: ProjectsParams = {
+    const projectsParams: ProjectsParams & { token: string } = {
+      token: params.token,
       page: nullToUndefined(params.page),
       pageSize: nullToUndefined(params.page_size),
       projects: params.projects,
@@ -289,6 +359,7 @@ mcpServer.tool(
   'metrics',
   'Get available metrics from Codescan',
   {
+    token: z.string(),
     page: z
       .string()
       .optional()
@@ -300,7 +371,8 @@ mcpServer.tool(
     component: z.string().optional(),
   },
   async (params) => {
-    const metricsParams: MetricsParams = {
+    const metricsParams: MetricsParams & { token: string } = {
+      token: params.token,
       page: nullToUndefined(params.page),
       pageSize: nullToUndefined(params.page_size),
       component: params.component,
@@ -313,6 +385,7 @@ mcpServer.tool(
   'issues',
   'Get issues for a Codescan project',
   {
+    token: z.string(),
     component: z.string(),
     severity: severitySchema,
     page: z
@@ -357,7 +430,13 @@ mcpServer.tool(
       .optional()
       .transform((val) => val === 'true'),
   },
-  async (params) => handleCodescanGetIssues(mapToCodescanParams(params))
+  async (params) => {
+    const issuesParams = {
+      ...mapToCodescanParams(params),
+      token: params.token,
+    };
+    return handleCodescanGetIssues(issuesParams);
+  }
 );
 
 // Only start the server if not in test mode

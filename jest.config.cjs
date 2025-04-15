@@ -1,33 +1,25 @@
 /** @type {import('jest').Config} */
 module.exports = {
-  preset: 'ts-jest/presets/default-esm',
+  preset: 'ts-jest',
   testEnvironment: 'node',
-  testMatch: ['**/__tests__/**/*.test.ts'],
-  moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1',
-    '^(\\.{1,2}/.*)\\.ts$': '$1',
-  },
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', {
-      useESM: true,
-      tsconfig: {
-        moduleResolution: "NodeNext"
-      }
-    }],
+    '^.+\\.[tj]sx?$': 'babel-jest',
   },
-  extensionsToTreatAsEsm: ['.ts'],
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+  moduleNameMapper: {
+    '^@modelcontextprotocol/sdk$': '<rootDir>/node_modules/@modelcontextprotocol/sdk'
+  },
   transformIgnorePatterns: [
-    'node_modules/(?!(@modelcontextprotocol)/)'
+    'node_modules/(?!@modelcontextprotocol/.*)'
   ],
   collectCoverageFrom: [
-    'src/**/*.ts',
+    'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
-    '!src/**/*.test.ts',
+    '!src/**/__tests__/**'
   ],
+  testMatch: [
+    '**/__tests__/**/*.test.ts'
+  ],
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   coverageReporters: ['text', 'lcov'],
-  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
-  experimental: {
-    esm: true
-  }
+  testPathIgnorePatterns: ['/node_modules/', '/dist/']
 }; 
