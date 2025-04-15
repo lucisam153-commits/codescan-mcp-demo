@@ -42,6 +42,10 @@ const client = new CodescanClient(
   process.env.CODESCAN_ORGANIZATION
 );
 
+console.log('CODESCAN_URL:', process.env.CODESCAN_URL);
+console.log('CODESCAN_TOKEN:', process.env.CODESCAN_TOKEN);
+console.log('CODESCAN_ORGANIZATION:', process.env.CODESCAN_ORGANIZATION);
+
 /**
  * Fetches and returns a list of all Codescan projects
  * @param params Parameters for listing projects, including pagination and organization
@@ -57,7 +61,18 @@ export async function handleCodescanProjects(params: {
     pageSize: nullToUndefined(params.page_size),
   };
 
-  const result = await client.listProjects(projectsParams);
+  let result;
+  try {
+    result = await client.listProjects(projectsParams);
+    console.log('listProjects result:', JSON.stringify(result, null, 2));
+  } catch (error) {
+    throw new Error(`Failed to list projects: ${error.message}`);
+  }
+
+  if (!result || !Array.isArray(result.projects)) {
+    throw new Error('Invalid response from listProjects: projects is not an array');
+  }
+
   return {
     content: [
       {
@@ -121,7 +136,17 @@ export function mapToCodescanParams(params: Record<string, unknown>): IssuesPara
  * @throws Error if the CODESCAN_TOKEN environment variable is not set
  */
 export async function handleCodescanGetIssues(params: IssuesParams) {
-  const result = await client.getIssues(params);
+  let result;
+  try {
+    result = await client.getIssues(params);
+    console.log('getIssues result:', JSON.stringify(result, null, 2));
+  } catch (error) {
+    throw new Error(`Failed to get issues: ${error.message}`);
+  }
+
+  if (!result || !Array.isArray(result.issues)) {
+    throw new Error('Invalid response from getIssues: issues is not an array');
+  }
 
   return {
     content: [
@@ -177,23 +202,26 @@ export async function handleCodescanGetIssues(params: IssuesParams) {
  * @returns Promise with the metrics result
  */
 export async function handleCodescanGetMetrics(params: MetricsParams) {
-  const result = await client.getMetrics(params);
+  let result;
+  try {
+    result = await client.getMetrics(params);
+    console.log('getMetrics result:', JSON.stringify(result, null, 2));
+  } catch (error) {
+    throw new Error(`Failed to get metrics: ${error.message}`);
+  }
 
-  // Create a properly structured response matching the expected format
-  const response = {
-    metrics: result.metrics ?? [],
-    paging: result.paging ?? {
-      pageIndex: params.page ?? 1,
-      pageSize: params.pageSize ?? 100,
-      total: (result.metrics ?? []).length,
-    },
-  };
+  if (!result || !Array.isArray(result.metrics)) {
+    throw new Error('Invalid response from getMetrics: metrics is not an array');
+  }
 
   return {
     content: [
       {
         type: 'text' as const,
-        text: JSON.stringify(response),
+        text: JSON.stringify({
+          metrics: result.metrics,
+          paging: result.paging,
+        }),
       },
     ],
   };

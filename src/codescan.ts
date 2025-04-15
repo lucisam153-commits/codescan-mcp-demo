@@ -289,10 +289,10 @@ export class CodescanClient {
   /**
    * Creates a new Codescan client
    * @param token Codescan authentication token
-   * @param baseUrl Base URL of the Codescan instance (default: https://codescan.io)
+   * @param baseUrl Base URL of the Codescan instance (default: https://app.codescan.io)
    * @param organization Optional organization key
    */
-  constructor(token: string, baseUrl = 'https://codescan.io', organization?: string | null) {
+  constructor(token: string, baseUrl = 'https://app.codescan.io', organization?: string | null) {
     this.baseUrl = baseUrl;
     this.auth = { username: token, password: '' };
     this.organization = organization ?? null;
@@ -304,33 +304,42 @@ export class CodescanClient {
    * @returns Promise resolving to projects result
    */
   async listProjects(params: ProjectsParams = {}): Promise<CodescanProjectsResult> {
-    const response = await axios.get(`${this.baseUrl}/api/projects/search`, {
-      auth: this.auth,
-      params: {
-        ...params,
-        organization: this.organization,
-      },
-    });
-
-    // Handle both 'components' and 'projects' in the response
-    const projects = response.data.components || response.data.projects || [];
-    
-    return {
-      projects: projects.map((project: CodescanApiComponent) => ({
-        key: project.key,
-        name: project.name,
-        qualifier: project.qualifier,
-        visibility: project.visibility,
-        lastAnalysisDate: project.lastAnalysisDate,
-        revision: project.revision,
-        managed: project.managed,
-      })),
-      paging: response.data.paging || {
-        pageIndex: 1,
-        pageSize: projects.length,
-        total: projects.length,
-      },
-    };
+    try {
+      const response = await axios.get(`${this.baseUrl}/api/projects/search`, {
+        auth: this.auth,
+        params: {
+          ...params,
+          organization: this.organization,
+        },
+      });
+      console.log('listProjects API Response:', JSON.stringify(response.data, null, 2));
+      if (response.data.errors) {
+        throw new Error('Codescan API error: ' + JSON.stringify(response.data.errors));
+      }
+      const projects = response.data.components || response.data.projects || [];
+      if (!Array.isArray(projects)) {
+        throw new Error('API returned non-array projects: ' + JSON.stringify(projects));
+      }
+      return {
+        projects: projects.map((project: CodescanApiComponent) => ({
+          key: project.key,
+          name: project.name,
+          qualifier: project.qualifier,
+          visibility: project.visibility,
+          lastAnalysisDate: project.lastAnalysisDate,
+          revision: project.revision,
+          managed: project.managed,
+        })),
+        paging: response.data.paging || {
+          pageIndex: params.page || 1,
+          pageSize: params.pageSize || projects.length,
+          total: projects.length,
+        },
+      };
+    } catch (error) {
+      console.error('listProjects error:', error);
+      throw error;
+    }
   }
 
   /**
@@ -339,26 +348,38 @@ export class CodescanClient {
    * @returns Promise resolving to issues result
    */
   async getIssues(params: IssuesParams): Promise<CodescanIssuesResult> {
-    const response = await axios.get(`${this.baseUrl}/api/issues/search`, {
-      auth: this.auth,
-      params: {
-        ...params,
-        organization: this.organization,
-      },
-    });
-
-    return {
-      issues: response.data.issues || [],
-      components: response.data.components || [],
-      rules: response.data.rules || [],
-      users: response.data.users || [],
-      facets: response.data.facets || [],
-      paging: response.data.paging || {
-        pageIndex: 1,
-        pageSize: (response.data.issues || []).length,
-        total: (response.data.issues || []).length,
-      },
-    };
+    try {
+      const response = await axios.get(`${this.baseUrl}/api/issues/search`, {
+        auth: this.auth,
+        params: {
+          ...params,
+          organization: this.organization,
+        },
+      });
+      console.log('getIssues API Response:', JSON.stringify(response.data, null, 2));
+      if (response.data.errors) {
+        throw new Error('Codescan API error: ' + JSON.stringify(response.data.errors));
+      }
+      const issues = response.data.issues || [];
+      if (!Array.isArray(issues)) {
+        throw new Error('API returned non-array issues: ' + JSON.stringify(issues));
+      }
+      return {
+        issues: issues,
+        components: response.data.components || [],
+        rules: response.data.rules || [],
+        users: response.data.users || [],
+        facets: response.data.facets || [],
+        paging: response.data.paging || {
+          pageIndex: params.page || 1,
+          pageSize: params.pageSize || issues.length,
+          total: issues.length,
+        },
+      };
+    } catch (error) {
+      console.error('getIssues error:', error);
+      throw error;
+    }
   }
 
   /**
@@ -367,21 +388,33 @@ export class CodescanClient {
    * @returns Promise resolving to metrics result
    */
   async getMetrics(params: MetricsParams = {}): Promise<CodescanMetricsResult> {
-    const response = await axios.get(`${this.baseUrl}/api/metrics/search`, {
-      auth: this.auth,
-      params: {
-        ...params,
-        organization: this.organization,
-      },
-    });
-
-    return {
-      metrics: response.data.metrics || [],
-      paging: response.data.paging || {
-        pageIndex: 1,
-        pageSize: (response.data.metrics || []).length,
-        total: (response.data.metrics || []).length,
-      },
-    };
+    try {
+      const response = await axios.get(`${this.baseUrl}/api/metrics/search`, {
+        auth: this.auth,
+        params: {
+          ...params,
+          organization: this.organization,
+        },
+      });
+      console.log('getMetrics API Response:', JSON.stringify(response.data, null, 2));
+      if (response.data.errors) {
+        throw new Error('Codescan API error: ' + JSON.stringify(response.data.errors));
+      }
+      const metrics = response.data.metrics || [];
+      if (!Array.isArray(metrics)) {
+        throw new Error('API returned non-array metrics: ' + JSON.stringify(metrics));
+      }
+      return {
+        metrics: metrics,
+        paging: response.data.paging || {
+          pageIndex: params.page || 1,
+          pageSize: params.pageSize || metrics.length,
+          total: metrics.length,
+        },
+      };
+    } catch (error) {
+      console.error('getMetrics error:', error);
+      throw error;
+    }
   }
 }
