@@ -9,8 +9,8 @@
       "parameters": {
         "token": {
           "type": "string",
-          "description": "Codescan API token",
-          "required": true
+          "description": "Codescan API token (optional if CODESCAN_TOKEN environment variable is set)",
+          "optional": true
         },
         "page": {
           "type": "string",
@@ -30,8 +30,8 @@
       "parameters": {
         "token": {
           "type": "string",
-          "description": "Codescan API token",
-          "required": true
+          "description": "Codescan API token (optional if CODESCAN_TOKEN environment variable is set)",
+          "optional": true
         },
         "page": {
           "type": "string",
@@ -56,8 +56,8 @@
       "parameters": {
         "token": {
           "type": "string",
-          "description": "Codescan API token",
-          "required": true
+          "description": "Codescan API token (optional if CODESCAN_TOKEN environment variable is set)",
+          "optional": true
         },
         "component": {
           "type": "string",

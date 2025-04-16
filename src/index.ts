@@ -64,13 +64,16 @@ function createClient(token: string): CodescanClient {
  * @returns A response containing the list of projects with their details
  */
 export async function handleCodescanProjects(params: ProjectsParams & { token?: string }) {
-  if (!params.token) {
+  // Use environment token if token parameter is not provided
+  const token = params.token || process.env.CODESCAN_TOKEN;
+  
+  if (!token) {
     return {
       content: [
         {
           type: 'text' as const,
           text: JSON.stringify({
-            error: 'Token is required',
+            error: 'Token is required either as a parameter or as CODESCAN_TOKEN environment variable',
             projects: [],
             paging: {
               pageIndex: params.page || 1,
@@ -83,7 +86,7 @@ export async function handleCodescanProjects(params: ProjectsParams & { token?: 
     };
   }
 
-  const client = createClient(params.token);
+  const client = createClient(token);
   let result;
   try {
     result = await client.listProjects(params);
@@ -154,7 +157,7 @@ export async function handleCodescanProjects(params: ProjectsParams & { token?: 
  */
 function mapToCodescanParams(params: any): IssuesParams & { token: string } {
   return {
-    token: params.token,
+    token: params.token || process.env.CODESCAN_TOKEN || '',
     component: params.component,
     severity: params.severity,
     page: nullToUndefined(params.page),
@@ -206,8 +209,34 @@ interface CodescanIssue {
  * @param params Parameters for fetching issues, including project key, severity, and pagination
  * @returns A response containing the list of issues with their details
  */
-export async function handleCodescanGetIssues(params: IssuesParams & { token: string }): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
-  const client = new CodescanClient(params.token);
+export async function handleCodescanGetIssues(params: IssuesParams & { token?: string }): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
+  // Use environment token if token parameter is not provided
+  const token = params.token || process.env.CODESCAN_TOKEN;
+  
+  if (!token) {
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            error: 'Token is required either as a parameter or as CODESCAN_TOKEN environment variable',
+            issues: [],
+            components: [],
+            rules: [],
+            users: [],
+            facets: [],
+            paging: {
+              pageIndex: 1,
+              pageSize: 0,
+              total: 0
+            }
+          })
+        }
+      ]
+    };
+  }
+  
+  const client = new CodescanClient(token);
   const result = await client.getIssues(params);
   return {
     content: [
@@ -225,13 +254,16 @@ export async function handleCodescanGetIssues(params: IssuesParams & { token: st
  * @returns Promise with the metrics result
  */
 export async function handleCodescanGetMetrics(params: MetricsParams & { token?: string }) {
-  if (!params.token) {
+  // Use environment token if token parameter is not provided
+  const token = params.token || process.env.CODESCAN_TOKEN;
+  
+  if (!token) {
     return {
       content: [
         {
           type: 'text' as const,
           text: JSON.stringify({
-            error: 'Token is required',
+            error: 'Token is required either as a parameter or as CODESCAN_TOKEN environment variable',
             metrics: [],
             paging: {
               pageIndex: params.page || 1,
@@ -244,7 +276,7 @@ export async function handleCodescanGetMetrics(params: MetricsParams & { token?:
     };
   }
 
-  const client = createClient(params.token);
+  const client = createClient(token);
   let result;
   try {
     result = await client.getMetrics(params);
@@ -333,7 +365,7 @@ mcpServer.tool(
   'projects',
   'List all Codescan projects',
   {
-    token: z.string(),
+    token: z.string().optional(),
     page: z
       .string()
       .optional()
@@ -345,7 +377,7 @@ mcpServer.tool(
     projects: z.string().optional(),
   },
   async (params) => {
-    const projectsParams: ProjectsParams & { token: string } = {
+    const projectsParams: ProjectsParams & { token?: string } = {
       token: params.token,
       page: nullToUndefined(params.page),
       pageSize: nullToUndefined(params.page_size),
@@ -359,7 +391,7 @@ mcpServer.tool(
   'metrics',
   'Get available metrics from Codescan',
   {
-    token: z.string(),
+    token: z.string().optional(),
     page: z
       .string()
       .optional()
@@ -371,7 +403,7 @@ mcpServer.tool(
     component: z.string().optional(),
   },
   async (params) => {
-    const metricsParams: MetricsParams & { token: string } = {
+    const metricsParams: MetricsParams & { token?: string } = {
       token: params.token,
       page: nullToUndefined(params.page),
       pageSize: nullToUndefined(params.page_size),
@@ -385,7 +417,7 @@ mcpServer.tool(
   'issues',
   'Get issues for a Codescan project',
   {
-    token: z.string(),
+    token: z.string().optional(),
     component: z.string(),
     severity: severitySchema,
     page: z
@@ -433,7 +465,7 @@ mcpServer.tool(
   async (params) => {
     const issuesParams = {
       ...mapToCodescanParams(params),
-      token: params.token,
+      token: params.token || process.env.CODESCAN_TOKEN,
     };
     return handleCodescanGetIssues(issuesParams);
   }
