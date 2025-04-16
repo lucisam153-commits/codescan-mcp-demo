@@ -7,6 +7,11 @@
       "name": "projects",
       "description": "List all Codescan projects",
       "parameters": {
+        "token": {
+          "type": "string",
+          "description": "Codescan API token",
+          "required": true
+        },
         "page": {
           "type": "string",
           "description": "Page number for pagination",
@@ -23,6 +28,11 @@
       "name": "metrics",
       "description": "Get available metrics from Codescan",
       "parameters": {
+        "token": {
+          "type": "string",
+          "description": "Codescan API token",
+          "required": true
+        },
         "page": {
           "type": "string",
           "description": "Page number for pagination",
@@ -32,6 +42,11 @@
           "type": "string",
           "description": "Number of items per page",
           "optional": true
+        },
+        "component": {
+          "type": "string",
+          "description": "Component key for filtering metrics",
+          "optional": true
         }
       }
     },
@@ -39,9 +54,14 @@
       "name": "issues",
       "description": "Get issues for a Codescan project",
       "parameters": {
-        "project_key": {
+        "token": {
           "type": "string",
-          "description": "The unique identifier for the Codescan project",
+          "description": "Codescan API token",
+          "required": true
+        },
+        "component": {
+          "type": "string",
+          "description": "The unique identifier for the Codescan component",
           "required": true
         },
         "severity": {
