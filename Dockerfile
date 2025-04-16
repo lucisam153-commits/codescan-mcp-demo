@@ -15,8 +15,14 @@ ENV NODE_ENV=production
 # Install dependencies
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
-# Copy source code
-COPY . .
+# Copy source code and configuration files
+COPY tsconfig.json ./
+COPY src/ ./src/
+COPY .prettierrc ./
+COPY .prettierignore ./
+COPY eslint.config.js ./
+COPY .babelrc ./
+COPY mcp.json ./
 
 # Build TypeScript code
 RUN pnpm run build
@@ -25,8 +31,12 @@ RUN pnpm run build
 RUN rm -rf node_modules && \
     pnpm install --frozen-lockfile --prod --ignore-scripts
 
+# Set environment variables
+ENV CODESCAN_URL=https://app.codescan.io
+ENV NODE_OPTIONS="--experimental-specifier-resolution=node"
+
 # Expose the port the app runs on
 EXPOSE 3000
 
 # Start the server
-CMD ["node", "--experimental-specifier-resolution=node", "dist/index.js"] 
+CMD ["node", "dist/index.js"] 
