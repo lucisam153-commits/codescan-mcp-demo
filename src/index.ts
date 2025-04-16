@@ -78,11 +78,11 @@ export async function handleCodescanProjects(params: ProjectsParams & { token?: 
             paging: {
               pageIndex: params.page || 1,
               pageSize: params.pageSize || 0,
-              total: 0
-            }
-          })
-        }
-      ]
+              total: 0,
+            },
+          }),
+        },
+      ],
     };
   }
 
@@ -102,11 +102,11 @@ export async function handleCodescanProjects(params: ProjectsParams & { token?: 
             paging: {
               pageIndex: params.page || 1,
               pageSize: params.pageSize || 0,
-              total: 0
-            }
-          })
-        }
-      ]
+              total: 0,
+            },
+          }),
+        },
+      ],
     };
   }
 
@@ -159,6 +159,7 @@ function mapToCodescanParams(params: any): IssuesParams & { token: string } {
   return {
     token: params.token || process.env.CODESCAN_TOKEN || '',
     component: params.component,
+    organization: process.env.CODESCAN_ORGANIZATION,
     severity: params.severity,
     page: nullToUndefined(params.page),
     pageSize: nullToUndefined(params.page_size),
@@ -209,10 +210,12 @@ interface CodescanIssue {
  * @param params Parameters for fetching issues, including project key, severity, and pagination
  * @returns A response containing the list of issues with their details
  */
-export async function handleCodescanGetIssues(params: IssuesParams & { token?: string }): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
+export async function handleCodescanGetIssues(
+  params: IssuesParams & { token?: string }
+): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
   // Use environment token if token parameter is not provided
   const token = params.token || process.env.CODESCAN_TOKEN;
-  
+
   if (!token) {
     return {
       content: [
@@ -228,23 +231,23 @@ export async function handleCodescanGetIssues(params: IssuesParams & { token?: s
             paging: {
               pageIndex: 1,
               pageSize: 0,
-              total: 0
-            }
-          })
-        }
-      ]
+              total: 0,
+            },
+          }),
+        },
+      ],
     };
   }
-  
-  const client = new CodescanClient(token);
+
+  const client = createClient(token);
   const result = await client.getIssues(params);
   return {
     content: [
       {
         type: 'text',
-        text: JSON.stringify(result)
-      }
-    ]
+        text: JSON.stringify(result),
+      },
+    ],
   };
 }
 
@@ -268,11 +271,11 @@ export async function handleCodescanGetMetrics(params: MetricsParams & { token?:
             paging: {
               pageIndex: params.page || 1,
               pageSize: params.pageSize || 0,
-              total: 0
-            }
-          })
-        }
-      ]
+              total: 0,
+            },
+          }),
+        },
+      ],
     };
   }
 
@@ -292,11 +295,11 @@ export async function handleCodescanGetMetrics(params: MetricsParams & { token?:
             paging: {
               pageIndex: params.page || 1,
               pageSize: params.pageSize || 0,
-              total: 0
-            }
-          })
-        }
-      ]
+              total: 0,
+            },
+          }),
+        },
+      ],
     };
   }
 

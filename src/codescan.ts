@@ -194,6 +194,7 @@ export interface CodescanProjectsResult {
  */
 export interface IssuesParams extends PaginationParams {
   component: string;
+  organization?: string;
   severity?: 'INFO' | 'MINOR' | 'MAJOR' | 'CRITICAL' | 'BLOCKER';
   statuses?: (
     | 'OPEN'
@@ -232,6 +233,7 @@ export interface IssuesParams extends PaginationParams {
  */
 export interface ProjectsParams extends PaginationParams {
   projects?: string;
+  organization?: string;
 }
 
 /**
@@ -280,6 +282,7 @@ export interface CodescanMetricsResult {
  */
 export interface MetricsParams extends PaginationParams {
   component?: string;
+  organization?: string;
 }
 
 /**
