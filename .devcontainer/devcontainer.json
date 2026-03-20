@@ -1,0 +1,13 @@
+{
+  "name": "Presh-ar Codescan MCP Demo",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:20",
+  "postCreateCommand": "npm install -g pnpm && pnpm install && pnpm run build",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "saoudrizwan.claude-dev"
+      ],
+      "settings": {}
+    }
+  }
+}
