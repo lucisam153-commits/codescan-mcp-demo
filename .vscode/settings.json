@@ -1,0 +1,7 @@
+{
+  "workbench.startupEditor": "readme",
+  "workbench.editor.enablePreview": false,
+  "files.autoOpen": [
+    ".vscode/cline_mcp_settings.json"
+  ]
+}
