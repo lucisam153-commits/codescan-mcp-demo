@@ -8,6 +8,12 @@
         "saoudrizwan.claude-dev"
       ],
       "settings": {}
+    },
+    "codespaces": {
+      "openFiles": [
+        "README.md",
+        ".vscode/cline_mcp_settings.json"
+      ]
     }
   }
 }
