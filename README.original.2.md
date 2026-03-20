@@ -1,23 +1,23 @@
 # 🚀 Presh-ar Codescan MCP Server - Live Demo
 
-Welcome! This is a fully self-contained environment to demonstrate the power of the **Codescan MCP Server**. The native **GitHub Copilot Chat** running in this editor has been securely connected directly to the Codescan APIs, granting it the ability to instantly inspect code quality, static analysis metrics, and vulnerabilities.
+Welcome! This is a fully self-contained environment to demonstrate the power of the **Codescan MCP Server**. The AI assistant running in this editor has been securely connected directly to the Codescan APIs, granting it the ability to instantly inspect code quality, static analysis metrics, and vulnerabilities.
 
 ## 🛠️ Step 1: Connect your Codescan Account
 
-Before asking Copilot to pull metrics, we need to give it your secure token.
+Before asking the AI to pull metrics, we need to give it your secure token.
 
-1. This environment automatically opened `.vscode/mcp.json` as a tab next to this file. (If it didn't, press `Ctrl+P` or `Cmd+P` and type `mcp.json`).
+1. Open the `.vscode/cline_mcp_settings.json` file in this editor.
 2. Replace `"replace_with_your_codescan_token"` with your actual Codescan Token.
 3. Replace `"replace_with_your_organization_id"` and `"replace_with_your_project_id"` with your organization and project keys.
 4. Save the file (`Ctrl+S` or `Cmd+S`). 
 
-*VS Code's native Copilot will automatically detect the changes and connect to the MCP server.*
+*The AI extension will automatically detect the changes and connect to the server.*
 
 ## 🪄 Step 2: The Magic Prompts
 
-Click the **GitHub Copilot Chat** icon on the left sidebar (the chat bubble) or press `Ctrl+Cmd+I` / `Ctrl+Shift+I`.
+Click the **Cline** icon on the left sidebar (it looks like a little robot) or press `Ctrl+Shift+P` and type "Cline: Open".
 
-Once the chat is open, click the **paperclip icon (Attach Context)** in the chat input and ensure the **Codescan Tools** are selected/available. Then, copy and paste these exact prompts to watch the AI interact with your live Codescan data:
+Once the chat is open, copy and paste these exact prompts to watch the AI interact with your live Codescan data:
 
 ### 🌟 Prompt 1: The Quick Health Check
 > "Use your Codescan tools to fetch the latest quality gate status and high-severity issues for my default project."
